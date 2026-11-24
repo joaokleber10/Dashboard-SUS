@@ -13,7 +13,7 @@ services:
     env_file: .env
     command: python -m src.etl
     volumes:
-      - dados:/app/data
+      - ./data:/app/data
     restart: "no"
 
   # 2) API FastAPI (lê o DuckDB em modo somente leitura). Só sobe depois que o ETL termina com sucesso.
@@ -24,7 +24,7 @@ services:
       etl:
         condition: service_completed_successfully
     volumes:
-      - dados:/app/data
+      - ./data:/app/data
     ports:
       - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
     healthcheck:

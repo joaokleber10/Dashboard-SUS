@@ -5,13 +5,13 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.dictionary import (
-    CAPITULOS, CARATER_ATENDIMENTO, COMPLEXIDADES, FAIXAS_ETARIAS, GRUPOS, SEXOS,
+    BLOCOS_CID10, CAPITULOS, CARATER_ATENDIMENTO, COMPLEXIDADES, FAIXAS_ETARIAS, GRUPOS, SEXOS,
     municipio6, normalizar_cid, uf_valida,
 )
 
 _VALIDOS = {
     "capitulo_ids": {c["id"] for c in CAPITULOS},
-    "grupo_ids": {g["id"] for g in GRUPOS},
+    "grupo_ids": {g["id"] for g in GRUPOS} | {b["id"] for b in BLOCOS_CID10},
     "faixas_etarias": {f["id"] for f in FAIXAS_ETARIAS},
     "sexos": {s["id"] for s in SEXOS},
     "carater": {c["id"] for c in CARATER_ATENDIMENTO},

@@ -111,7 +111,70 @@ def test_top_cid(client):
     j18 = r["itens"][0]
     assert (j18["casos"], j18["obitos"], j18["percentual"]) == (2, 1, 33.33)
     assert j18["capitulo_id"] == "X" and "Respiratório" in j18["capitulo_nome"]
+    assert j18["grupo_nome"] is not None
     ix = client.get("/top-cid", params={"capitulo_ids": ["IX"]}).json()
     assert {i["cid3"] for i in ix["itens"]} == {"I21", "I10", "I64"}
     assert client.get("/top-cid", params={"limite": 0}).status_code == 422
     assert client.get("/top-cid", params={"uf": "SP"}).json()["itens"] == []
+
+
+def test_meta_fonte_e_kpis_municipios_atendidos(client):
+    m = client.get("/meta/filtros").json()
+    assert m["periodo"]["fonte"] == "SIH/SUS (RD — DATASUS)"
+    assert m["periodo"]["ultima_atualizacao"]
+    a = client.get("/kpis").json()["atual"]
+    assert a["municipios_atendidos"] == 2
+    # filtro por bloco CID-10 oficial
+    blk = client.get("/kpis", params={"grupo_ids": ["I20-I25"]}).json()["atual"]
+    assert blk["total"] == 1
+
+
+def test_top_municipios_busca_e_favoritos(client):
+    r = client.get("/top-municipios", params={"limite": 10}).json()
+    assert r["total_municipios"] == 2
+    codigos = [i["codigo"] for i in r["itens"]]
+    assert set(codigos) == {"250750", "250910"}
+    jp = next(i for i in r["itens"] if i["codigo"] == "250750")
+    assert jp["nome"] == "João Pessoa - PB" and jp["casos"] == 3 and jp["obitos"] == 1
+
+    # ignora filtro de municipio para manter a lista navegável
+    r_mun = client.get("/top-municipios", params={"municipio": "250750"}).json()
+    assert r_mun["total_municipios"] == 2
+
+    # favoritos (incluindo um sem casos no recorte) aparecem no topo
+    r_fav = client.get("/top-municipios", params={"favoritos": ["250400", "250910"]}).json()
+    assert [i["codigo"] for i in r_fav["itens"][:2]] == ["250910", "250400"]
+    assert r_fav["itens"][0]["favorito"] is True
+    assert r_fav["itens"][1]["casos"] == 0 and r_fav["itens"][1]["nome"] == "Campina Grande - PB"
+
+    # busca sem acento e por código
+    r_busca = client.get("/top-municipios", params={"busca": "joao pessoa"}).json()
+    assert len(r_busca["itens"]) == 1 and r_busca["itens"][0]["codigo"] == "250750"
+    r_cod = client.get("/top-municipios", params={"busca": "250910"}).json()
+    assert len(r_cod["itens"]) == 1 and r_cod["itens"][0]["codigo"] == "250910"
+
+
+def test_cid_grupos_e_resolver(client):
+    grupos = client.get("/cid/grupos").json()
+    assert len(grupos) >= 4
+    assert grupos[0]["id"] == "J09-J18" and grupos[0]["internacoes"] == 2
+    # ignora grupo_ids/cid_codigos mas respeita capitulo_ids
+    grupos_ix = client.get("/cid/grupos", params={"capitulo_ids": ["IX"], "grupo_ids": ["iam"]}).json()
+    assert all(g["capitulo"] == "IX" for g in grupos_ix) and len(grupos_ix) == 3
+
+    res_ok = client.get("/cid/resolver", params={"codigo": "I21.9"}).json()
+    assert res_ok["valido"] is True and res_ok["cid3"] == "I21"
+    assert res_ok["bloco"]["id"] == "I20-I25" and res_ok["grupo_prioritario"]["id"] == "iam"
+
+    res_bad = client.get("/cid/resolver", params={"codigo": "invalido"}).json()
+    assert res_bad == {"valido": False, "cid3": None, "capitulo": None, "bloco": None, "grupo_prioritario": None}
+
+
+def test_export_csv(client):
+    resp = client.get("/export/csv", params={"capitulo_ids": ["IX"]})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/csv")
+    assert 'filename="internacoes_sus.csv"' in resp.headers["content-disposition"]
+    linhas = resp.text.strip().splitlines()
+    assert linhas[0].startswith("n_aih,uf,ano_mes,data_internacao,data_saida,cid3")
+    assert len(linhas) == 4  # cabeçalho + 3 linhas do capítulo IX

@@ -51,3 +51,17 @@ def test_filtros_validacao():
             Filtros(**ruim)
     assert Filtros(faixas_etarias=["65"]).faixas_etarias == ["65+"]
     assert Filtros(municipio="2507507").municipio == "250750"
+    assert Filtros(grupo_ids=["iam", "I20-I25"]).grupo_ids == ["iam", "I20-I25"]
+
+
+def test_where_grupos_legado_e_blocos_cid10():
+    w_leg, p_leg = build_where(Filtros(grupo_ids=["iam"]))
+    assert "grupo_id IN (?)" in w_leg and p_leg == ["iam"]
+
+    w_blk, p_blk = build_where(Filtros(grupo_ids=["I20-I25"]))
+    assert "(cid3 >= ? AND cid3 <= ?)" in w_blk and p_blk == ["I20", "I25"]
+
+    w_mix, p_mix = build_where(Filtros(grupo_ids=["iam", "I20-I25", "O80-O84"]))
+    assert "grupo_id IN (?)" in w_mix and " OR " in w_mix
+    assert p_mix == ["iam", "I20", "I25", "O80", "O84"]
+

@@ -1,10 +1,15 @@
 """SQL dos KPIs e gráficos. Valores sempre por parâmetro (?); colunas são fixas no código."""
 from __future__ import annotations
 
+import csv
+import io
+import unicodedata
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Optional
 
-from src.dictionary import CAPITULOS, FAIXAS_ETARIAS
+from src.dictionary import (
+    BLOCO_POR_ID, CAPITULOS, FAIXAS_ETARIAS, cid_to_bloco, municipio6, municipio_nome,
+)
 
 if TYPE_CHECKING:
     from src.schemas import Filtros
@@ -32,7 +37,22 @@ def build_where(f: "Filtros", incluir_cid: bool = True,
 
     if incluir_cid:
         add_in("capitulo_id", f.capitulo_ids)
-        add_in("grupo_id", f.grupo_ids)
+        if f.grupo_ids:
+            grupos_legado = [g for g in f.grupo_ids if g not in BLOCO_POR_ID]
+            blocos = [BLOCO_POR_ID[g] for g in f.grupo_ids if g in BLOCO_POR_ID]
+            partes: list[str] = []
+            g_params: list = []
+            if grupos_legado:
+                partes.append(f"grupo_id IN ({','.join(['?'] * len(grupos_legado))})")
+                g_params.extend(grupos_legado)
+            for bloco in blocos:
+                partes.append("(cid3 >= ? AND cid3 <= ?)")
+                g_params.extend([bloco["inicio"], bloco["fim"]])
+            if len(partes) == 1 and grupos_legado:
+                conds.append(partes[0])
+            elif partes:
+                conds.append("(" + " OR ".join(partes) + ")")
+            params.extend(g_params)
         add_in("cid3", f.cid_codigos)
     if f.uf:
         conds.append("uf = ?")
@@ -123,8 +143,9 @@ def meses_entre(inicio: str, fim: str) -> list[str]:
 
 # -------------------------------------------------------------------- KPIs
 def _agregados(db, where: str, params: list) -> dict:
-    total, obitos, perm, custo_total, custo_medio = db.execute(
-        f"""SELECT count(*), count(*) FILTER (WHERE obito), avg(dias_perm), sum(val_tot), avg(val_tot)
+    total, obitos, perm, custo_total, custo_medio, muns = db.execute(
+        f"""SELECT count(*), count(*) FILTER (WHERE obito), avg(dias_perm), sum(val_tot), avg(val_tot),
+                   count(DISTINCT municipio_res)
             FROM {TABELA}{where}""", params).fetchone()
     return {
         "total": int(total),
@@ -133,6 +154,7 @@ def _agregados(db, where: str, params: list) -> dict:
         "permanencia_media": _num(perm),
         "custo_total": _num(custo_total),
         "custo_medio": _num(custo_medio),
+        "municipios_atendidos": int(muns or 0),
     }
 
 
@@ -217,8 +239,146 @@ def top_cid(db, f: "Filtros", limite: int = 10) -> dict:
         "cid3": cid3,
         "capitulo_id": cap,
         "capitulo_nome": _NOMES_CAPITULO.get(cap, "Sem capítulo"),
+        "grupo_nome": bloco["nome"] if (bloco := cid_to_bloco(cid3)) else None,
         "casos": int(n),
         "obitos": int(obitos),
         "percentual": _pct(n, total),
     } for cid3, cap, n, obitos in linhas]
     return {"total_com_cid": total, "itens": itens}
+
+
+# --------------------------------------------------------- Top Municípios
+def _norm_texto(texto: str) -> str:
+    sem_acento = "".join(
+        c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c)
+    )
+    return sem_acento.lower().strip()
+
+
+def top_municipios(
+    db,
+    f: "Filtros",
+    limite: int = 10,
+    busca: Optional[str] = None,
+    favoritos: Optional[list[str]] = None,
+) -> dict:
+    """Ranking de municípios de residência (ignora filtro de município para manter lista navegável)."""
+    f_base = f.model_copy(update={"municipio": None})
+    where, params = build_where(f_base)
+    where += (" AND " if where else " WHERE ") + "municipio_res IS NOT NULL"
+    rows = db.execute(
+        f"""SELECT municipio_res, count(*) AS casos, count(*) FILTER (WHERE obito) AS obitos,
+                   coalesce(sum(val_tot), 0.0) AS custo_total
+            FROM {TABELA}{where}
+            GROUP BY 1""",
+        params,
+    ).fetchall()
+
+    fav_codigos: list[str] = []
+    for raw in favoritos or []:
+        cod = municipio6(raw)
+        if cod and cod not in fav_codigos:
+            fav_codigos.append(cod)
+    fav_set = set(fav_codigos)
+
+    por_cod: dict[str, dict] = {}
+    for cod_raw, casos, obitos, custo in rows:
+        cod = str(cod_raw)
+        casos_i = int(casos)
+        obitos_i = int(obitos)
+        por_cod[cod] = {
+            "codigo": cod,
+            "nome": municipio_nome(cod),
+            "casos": casos_i,
+            "obitos": obitos_i,
+            "taxa_mortalidade": _pct(obitos_i, casos_i) or 0.0,
+            "custo_total": _num(custo) or 0.0,
+            "favorito": cod in fav_set,
+        }
+
+    for cod in fav_codigos:
+        if cod not in por_cod:
+            por_cod[cod] = {
+                "codigo": cod,
+                "nome": municipio_nome(cod),
+                "casos": 0,
+                "obitos": 0,
+                "taxa_mortalidade": 0.0,
+                "custo_total": 0.0,
+                "favorito": True,
+            }
+
+    termo = _norm_texto(busca) if busca and busca.strip() else ""
+    if termo:
+        filtrados = [
+            item for item in por_cod.values()
+            if termo in _norm_texto(item["nome"]) or termo in item["codigo"]
+        ]
+        filtrados.sort(key=lambda x: (not x["favorito"], -x["casos"], x["nome"]))
+        itens = filtrados[: int(limite)]
+    else:
+        fav_itens = sorted(
+            (item for item in por_cod.values() if item["favorito"]),
+            key=lambda x: (-x["casos"], x["nome"]),
+        )
+        outros = sorted(
+            (item for item in por_cod.values() if not item["favorito"]),
+            key=lambda x: (-x["casos"], x["nome"]),
+        )
+        restante = max(0, int(limite) - len(fav_itens))
+        itens = fav_itens + outros[:restante]
+
+    return {"total_municipios": len(rows), "itens": itens}
+
+
+# ------------------------------------------------------- Grupos dinâmicos
+def grupos_dinamicos(db, f: "Filtros") -> list[dict]:
+    """Agrega internações por bloco oficial CID-10 ignorando filtros de grupo e CID."""
+    f_base = f.model_copy(update={"grupo_ids": [], "cid_codigos": []})
+    where, params = build_where(f_base)
+    where += (" AND " if where else " WHERE ") + "cid3 IS NOT NULL"
+    rows = db.execute(
+        f"SELECT cid3, count(*) FROM {TABELA}{where} GROUP BY 1",
+        params,
+    ).fetchall()
+
+    totais: dict[str, int] = {}
+    for cid3, n in rows:
+        bloco = cid_to_bloco(cid3)
+        if bloco is None:
+            continue
+        bid = bloco["id"]
+        totais[bid] = totais.get(bid, 0) + int(n)
+
+    itens = [
+        {**BLOCO_POR_ID[bid], "internacoes": total}
+        for bid, total in totais.items()
+    ]
+    itens.sort(key=lambda x: (-x["internacoes"], x["id"]))
+    return itens
+
+
+# ----------------------------------------------------------- Exportar CSV
+EXPORT_COLUMNS = (
+    "n_aih", "uf", "ano_mes", "data_internacao", "data_saida",
+    "cid3", "capitulo_id", "grupo_id", "faixa_etaria", "sexo",
+    "carater", "complexidade", "municipio_res", "obito", "dias_perm", "val_tot",
+)
+
+
+def exportar_csv(db, f: "Filtros", limite: int = 50000) -> str:
+    """Exporta linhas filtradas da tabela internacoes em formato CSV UTF-8."""
+    where, params = build_where(f)
+    existentes = {r[0] for r in db.execute(f"DESCRIBE {TABELA}").fetchall()}
+    colunas_sql = ", ".join(c if c in existentes else f"NULL AS {c}" for c in EXPORT_COLUMNS)
+    order_sql = "data_internacao DESC NULLS LAST" + (", n_aih ASC" if "n_aih" in existentes else "")
+    rows = db.execute(
+        f"SELECT {colunas_sql} FROM {TABELA}{where} ORDER BY {order_sql} LIMIT ?",
+        [*params, int(limite)],
+    ).fetchall()
+
+    buf = io.StringIO(newline="")
+    writer = csv.writer(buf)
+    writer.writerow(EXPORT_COLUMNS)
+    writer.writerows(rows)
+    return buf.getvalue()

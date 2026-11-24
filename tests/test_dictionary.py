@@ -1,7 +1,8 @@
 import math
 import pytest
 from src.dictionary import (
-    normalizar_cid, cid_to_chapter, cid_to_grupo, municipio6, idade_para_anos,
+    normalizar_cid, cid_to_chapter, cid_to_grupo, cid_to_bloco, resolver_cid,
+    municipio6, municipio_nome, idade_para_anos,
     faixa_etaria, normalizar_complexidade, normalizar_sexo, normalizar_carater, uf_valida, CAPITULOS,
 )
 
@@ -76,3 +77,30 @@ def test_idade_cod5_cem_anos_ou_mais():
     assert idade_para_anos(3, 5) == 103.0
     assert faixa_etaria(idade_para_anos(0, 5)) == "65+"
     assert idade_para_anos(10, 9) is None   # código desconhecido continua None
+
+
+def test_cid_to_bloco_e_resolver_cid():
+    bloco = cid_to_bloco("I21.9")
+    assert bloco is not None and bloco["id"] == "I20-I25" and bloco["capitulo"] == "IX"
+    assert cid_to_bloco("invalido") is None
+
+    res = resolver_cid("i21.0")
+    assert res is not None
+    assert res["cid3"] == "I21"
+    assert res["capitulo"]["id"] == "IX"
+    assert res["bloco"]["id"] == "I20-I25"
+    assert res["grupo_prioritario"]["id"] == "iam"
+
+    res_sem_grupo = resolver_cid("O80")
+    assert res_sem_grupo is not None
+    assert res_sem_grupo["capitulo"]["id"] == "XV"
+    assert res_sem_grupo["bloco"]["id"] == "O80-O84"
+    assert res_sem_grupo["grupo_prioritario"] is None
+    assert resolver_cid("lixo") is None
+
+
+def test_municipio_nome():
+    assert municipio_nome("250750") == "João Pessoa - PB"
+    assert municipio_nome("2507507") == "João Pessoa - PB"
+    assert municipio_nome("999999") == "Município 999999"
+

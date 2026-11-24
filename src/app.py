@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Annotated, Literal, Optional
 
 import duckdb
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -19,7 +19,7 @@ except ImportError:
 
 from src import queries
 from src.db import caminho_banco, get_db
-from src.dictionary import meta_filtros
+from src.dictionary import meta_filtros, resolver_cid
 from src.schemas import Filtros
 
 app = FastAPI(title="Dashboard Epidemiológico SUS", version="0.1.0")
@@ -76,8 +76,17 @@ def meta(db=Depends(get_db)):
     dmin, dmax, cmin, cmax = db.execute(
         "SELECT min(data_internacao), max(data_internacao), min(competencia), max(competencia) FROM internacoes"
     ).fetchone()
-    dados["periodo"] = {"data_min": _iso(dmin), "data_max": _iso(dmax),
-                        "competencia_min": cmin, "competencia_max": cmax}
+    ultima_atualizacao = datetime.fromtimestamp(
+        caminho_banco().stat().st_mtime, tz=timezone.utc
+    ).isoformat()
+    dados["periodo"] = {
+        "data_min": _iso(dmin),
+        "data_max": _iso(dmax),
+        "competencia_min": cmin,
+        "competencia_max": cmax,
+        "fonte": "SIH/SUS (RD — DATASUS)",
+        "ultima_atualizacao": ultima_atualizacao,
+    }
     dados["ufs_disponiveis"] = [r[0] for r in db.execute("SELECT DISTINCT uf FROM internacoes ORDER BY 1").fetchall()]
     return dados
 
@@ -108,3 +117,47 @@ def get_top_cid(
     db=Depends(get_db),
 ):
     return queries.top_cid(db, f, limite)
+
+
+@app.get("/top-municipios")
+def get_top_municipios(
+    limite: Annotated[int, Query(ge=1, le=50)] = 10,
+    busca: Optional[str] = None,
+    favoritos: Annotated[list[str], Query()] = [],
+    f: Filtros = Depends(filtros_dep),
+    db=Depends(get_db),
+):
+    return queries.top_municipios(db, f, limite=limite, busca=busca, favoritos=favoritos)
+
+
+@app.get("/cid/grupos")
+def get_cid_grupos(f: Filtros = Depends(filtros_dep), db=Depends(get_db)):
+    return queries.grupos_dinamicos(db, f)
+
+
+@app.get("/cid/resolver")
+def get_cid_resolver(codigo: str = Query(..., min_length=1)):
+    res = resolver_cid(codigo)
+    if res is None:
+        return {
+            "valido": False,
+            "cid3": None,
+            "capitulo": None,
+            "bloco": None,
+            "grupo_prioritario": None,
+        }
+    return {"valido": True, **res}
+
+
+@app.get("/export/csv")
+def get_export_csv(
+    limite: Annotated[int, Query(ge=1, le=200000)] = 50000,
+    f: Filtros = Depends(filtros_dep),
+    db=Depends(get_db),
+):
+    conteudo = queries.exportar_csv(db, f, limite=limite)
+    return Response(
+        content=conteudo,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="internacoes_sus.csv"'},
+    )

@@ -14,7 +14,10 @@ export function filtrosPadrao(meta: Meta): Filtros {
   const { competencia_min: min, competencia_max: max } = meta.periodo;
   return {
     capitulo_ids: ["IX", "X"],
+    grupo_ids: [],
+    cid_codigos: [],
     uf: "",
+    municipio: "",
     data_inicio: min ? primeiroDia(min) : "",
     data_fim: max ? ultimoDia(max) : "",
     faixas_etarias: [],
@@ -25,12 +28,22 @@ export function filtrosPadrao(meta: Meta): Filtros {
   };
 }
 
-export function ultimoMes(meta: Meta): { data_inicio: string; data_fim: string } | null {
+export function ultimoMes(
+  meta: Meta,
+): { data_inicio: string; data_fim: string } | null {
   const max = meta.periodo.competencia_max;
-  return max ? { data_inicio: primeiroDia(max), data_fim: ultimoDia(max) } : null;
+  return max
+    ? { data_inicio: primeiroDia(max), data_fim: ultimoDia(max) }
+    : null;
 }
 
-export function periodoCompleto(meta: Meta): { data_inicio: string; data_fim: string } {
+export function periodoCompleto(meta: Meta): {
+  data_inicio: string;
+  data_fim: string;
+} {
   const { competencia_min: min, competencia_max: max } = meta.periodo;
-  return { data_inicio: min ? primeiroDia(min) : "", data_fim: max ? ultimoDia(max) : "" };
+  return {
+    data_inicio: min ? primeiroDia(min) : "",
+    data_fim: max ? ultimoDia(max) : "",
+  };
 }

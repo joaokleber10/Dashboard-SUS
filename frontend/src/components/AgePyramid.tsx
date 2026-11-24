@@ -15,6 +15,7 @@ import type { Filtros } from "../types";
 import { ErroBanner } from "./Estados";
 
 const nf = new Intl.NumberFormat("pt-BR");
+const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
 export default function AgePyramid({ filtros }: { filtros: Filtros }) {
   const q = useQuery({
@@ -23,13 +24,19 @@ export default function AgePyramid({ filtros }: { filtros: Filtros }) {
     placeholderData: keepPreviousData,
   });
 
-  const { dados, limite, vazio, ignorado } = useMemo(() => {
+  const { dados, resumo, limite, vazio, ignorado } = useMemo(() => {
     const faixas = q.data?.faixas ?? [];
+    const totalGeral = faixas.reduce((soma, f) => soma + f.total, 0);
     return {
       // Masculino negativo (esquerda) e feminino positivo (direita); faixa mais velha no topo.
       dados: [...faixas]
         .reverse()
         .map((f) => ({ faixa: f.faixa, Masculino: -f.M, Feminino: f.F })),
+      resumo: faixas.map((f) => ({
+        faixa: f.faixa,
+        total: f.total,
+        pct: totalGeral > 0 ? (f.total / totalGeral) * 100 : 0,
+      })),
       limite: Math.max(1, ...faixas.flatMap((f) => [f.M, f.F])),
       vazio: faixas.every((f) => f.total === 0),
       ignorado: faixas.reduce((soma, f) => soma + f.I, 0),
@@ -57,7 +64,7 @@ export default function AgePyramid({ filtros }: { filtros: Filtros }) {
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#e5e7eb"
+                stroke="var(--borda)"
                 horizontal={false}
               />
               <XAxis
@@ -77,6 +84,26 @@ export default function AgePyramid({ filtros }: { filtros: Filtros }) {
               <Bar dataKey="Feminino" stackId="piramide" fill="#db2777" />
             </BarChart>
           </ResponsiveContainer>
+
+          <div className="age-summary">
+            <span className="age-summary-titulo">
+              Distribuição por faixa etária
+            </span>
+            <div className="age-summary-grid">
+              {resumo.map((r) => (
+                <div key={r.faixa} className="age-summary-item">
+                  <span className="age-summary-faixa">{r.faixa}</span>
+                  <strong className="age-summary-pct">
+                    {nf1.format(r.pct)}%
+                  </strong>
+                  <small className="age-summary-total">
+                    {nf.format(r.total)}
+                  </small>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {(ignorado > 0 || (q.data?.sem_faixa ?? 0) > 0) && (
             <p className="nota">
               Não exibidos: {nf.format(ignorado)} com sexo ignorado e{" "}

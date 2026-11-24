@@ -10,8 +10,12 @@ dos arquivos baixados (o layout muda entre anos).
 """
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 from typing import Optional
+
+from src.cid10_blocos import BLOCOS_CID10
 
 # ---------------------------------------------------------------- CID-10
 _CID_RE = re.compile(r"^[A-Z]\d{2}$")
@@ -72,6 +76,11 @@ GRUPOS: list[dict] = [
 ]
 
 
+BLOCO_POR_ID = {b["id"]: b for b in BLOCOS_CID10}
+CAPITULO_POR_ID = {c["id"]: c for c in CAPITULOS}
+GRUPO_POR_ID = {g["id"]: g for g in GRUPOS}
+
+
 def _em_faixa(cat: str, inicio: str, fim: str) -> bool:
     return _key(inicio) <= _key(cat) <= _key(fim)
 
@@ -96,6 +105,33 @@ def cid_to_grupo(codigo: object) -> Optional[str]:
         if _em_faixa(cat, g["inicio"], g["fim"]):
             return g["id"]
     return None
+
+
+def cid_to_bloco(codigo: object) -> Optional[dict]:
+    """Bloco oficial CID-10 (OMS/DATASUS) correspondente ao código, ou None."""
+    cat = normalizar_cid(codigo)
+    if cat is None:
+        return None
+    for bloco in BLOCOS_CID10:
+        if _em_faixa(cat, bloco["inicio"], bloco["fim"]):
+            return bloco
+    return None
+
+
+def resolver_cid(codigo: object) -> Optional[dict]:
+    """Resolve um código CID-10 para categoria, capítulo, bloco oficial e grupo prioritário."""
+    cat = normalizar_cid(codigo)
+    if cat is None:
+        return None
+    cap_id = cid_to_chapter(cat)
+    bloco = cid_to_bloco(cat)
+    grp_id = cid_to_grupo(cat)
+    return {
+        "cid3": cat,
+        "capitulo": CAPITULO_POR_ID.get(cap_id) if cap_id else None,
+        "bloco": bloco,
+        "grupo_prioritario": GRUPO_POR_ID.get(grp_id) if grp_id else None,
+    }
 
 
 # ------------------------------------------------------------------- UFs
@@ -143,6 +179,25 @@ def municipio6(codigo: object) -> Optional[str]:
     if len(s) == 7:      # IBGE completo -> remove dígito verificador
         s = s[:6]
     return s if len(s) == 6 else None
+
+
+def _carregar_municipios_ibge() -> dict[str, str]:
+    caminho = Path(__file__).with_name("municipios_ibge.json")
+    if not caminho.exists():
+        return {}
+    return json.loads(caminho.read_text(encoding="utf-8"))
+
+
+MUNICIPIOS_IBGE: dict[str, str] = _carregar_municipios_ibge()
+
+
+def municipio_nome(codigo: object) -> str:
+    """Retorna o nome oficial IBGE ('João Pessoa - PB') para um código de 6/7 dígitos."""
+    cod = municipio6(codigo)
+    if cod is None:
+        bruto = str(codigo).strip() if codigo is not None else ""
+        return f"Município {bruto}" if bruto else "Município desconhecido"
+    return MUNICIPIOS_IBGE.get(cod, f"Município {cod}")
 
 
 # ------------------------------------------------------- Faixas etárias
