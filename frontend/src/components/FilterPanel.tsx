@@ -201,6 +201,7 @@ const FilterPanel = memo(function FilterPanel({
                 set("comparacao", e.target.value as Filtros["comparacao"])
               }
             >
+              <option value="nenhuma">Não comparar</option>
               <option value="periodo_anterior">Período anterior (MoM)</option>
               <option value="ano_anterior">
                 Mesmo período do ano anterior (YoY)
@@ -225,6 +226,27 @@ const FilterPanel = memo(function FilterPanel({
               </select>
             </label>
           )}
+        </div>
+
+        <div className="grupo">
+          <label className="campo" htmlFor="filter-capitulo">
+            Capítulo CID-10
+            <select
+              id="filter-capitulo"
+              value={filtros.capitulo_ids[0] ?? ""}
+              onChange={(e) =>
+                set("capitulo_ids", e.target.value ? [e.target.value] : [])
+              }
+            >
+              <option value="">Todos os capítulos</option>
+              {meta.capitulos.map((cap) => (
+                <option key={cap.id} value={cap.id}>
+                  {cap.destaque ? "★ " : ""}
+                  {cap.id} — {cap.nome} ({cap.inicio}–{cap.fim})
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <fieldset className="grupo">
@@ -338,15 +360,6 @@ const FilterPanel = memo(function FilterPanel({
             </div>
           )}
         </fieldset>
-      </div>
-
-      <div className="painel-linha-capitulos">
-        <CheckGroup
-          titulo="Capítulos CID-10 em destaque"
-          opcoes={meta.capitulos.filter((c) => c.destaque)}
-          valor={filtros.capitulo_ids}
-          onChange={(v) => set("capitulo_ids", v)}
-        />
       </div>
 
       <div className="painel-grid-chips">

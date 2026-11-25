@@ -60,6 +60,7 @@ function Card({ titulo, valor, extra, variacao, title }: CardProps) {
 export default function KpiCards({ dados }: { dados: KpisResp }) {
   const a = dados.atual;
   const v = dados.variacao_pct;
+  const semComparacao = dados.comparacao === "nenhuma";
   const rotuloComp =
     dados.comparacao === "ano_anterior"
       ? "vs. ano anterior"
@@ -70,8 +71,12 @@ export default function KpiCards({ dados }: { dados: KpisResp }) {
       <Card
         titulo="Internações"
         valor={nf.format(a.total)}
-        extra={`${nf2.format(a.proporcao_total_geral ?? 0)}% do total · ${rotuloComp}`}
-        variacao={<Variacao valor={v?.total} unidade="%" />}
+        extra={
+          semComparacao
+            ? `${nf2.format(a.proporcao_total_geral ?? 0)}% do total geral`
+            : `${nf2.format(a.proporcao_total_geral ?? 0)}% do total · ${rotuloComp}`
+        }
+        variacao={semComparacao ? undefined : <Variacao valor={v?.total} unidade="%" />}
       />
       <Card
         titulo="Taxa de mortalidade hospitalar"
@@ -80,8 +85,16 @@ export default function KpiCards({ dados }: { dados: KpisResp }) {
             ? "—"
             : `${nf2.format(a.taxa_mortalidade)}%`
         }
-        extra={`${nf.format(a.obitos)} óbitos · ${rotuloComp}`}
-        variacao={<Variacao valor={v?.taxa_mortalidade_pp} unidade="p.p." />}
+        extra={
+          semComparacao
+            ? `${nf.format(a.obitos)} óbitos hospitalares`
+            : `${nf.format(a.obitos)} óbitos · ${rotuloComp}`
+        }
+        variacao={
+          semComparacao ? undefined : (
+            <Variacao valor={v?.taxa_mortalidade_pp} unidade="p.p." />
+          )
+        }
       />
       <Card
         titulo="Permanência média"
@@ -90,18 +103,30 @@ export default function KpiCards({ dados }: { dados: KpisResp }) {
             ? "—"
             : `${nf1.format(a.permanencia_media)} dias`
         }
-        extra={rotuloComp}
-        variacao={<Variacao valor={v?.permanencia_media} unidade="%" />}
+        extra={semComparacao ? "Tempo médio de internação" : rotuloComp}
+        variacao={
+          semComparacao ? undefined : (
+            <Variacao valor={v?.permanencia_media} unidade="%" />
+          )
+        }
       />
       <Card
         titulo="Custo total (SUS)"
         valor={a.custo_total === null ? "—" : brl.format(a.custo_total)}
         extra={
           a.custo_medio === null
-            ? rotuloComp
-            : `Custo médio por internação (AIH): ${brl.format(a.custo_medio)} · ${rotuloComp}`
+            ? semComparacao
+              ? undefined
+              : rotuloComp
+            : semComparacao
+              ? `Custo médio por internação (AIH): ${brl.format(a.custo_medio)}`
+              : `Custo médio por internação (AIH): ${brl.format(a.custo_medio)} · ${rotuloComp}`
         }
-        variacao={<Variacao valor={v?.custo_total} unidade="%" />}
+        variacao={
+          semComparacao ? undefined : (
+            <Variacao valor={v?.custo_total} unidade="%" />
+          )
+        }
         title="Valor total aprovado das AIHs no SIH/SUS (campo VAL_TOT — soma dos serviços hospitalares, profissionais e complementares)."
       />
       {a.municipios_atendidos !== undefined && (

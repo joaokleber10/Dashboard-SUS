@@ -102,7 +102,7 @@ def periodo_anterior(f: "Filtros") -> Optional[tuple[date, date]]:
       meses imediatamente antes (julho -> junho inteiro); caso contrário, a mesma
       quantidade de dias imediatamente antes.
     """
-    if not (f.data_inicio and f.data_fim):
+    if f.comparacao == "nenhuma" or not (f.data_inicio and f.data_fim):
         return None
     if f.comparacao == "ano_anterior":
         return _menos_um_ano(f.data_inicio), _menos_um_ano(f.data_fim)

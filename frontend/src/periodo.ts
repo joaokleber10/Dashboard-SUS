@@ -9,11 +9,11 @@ export function ultimoDia(competencia: string): string {
   return `${competencia}-${pad(new Date(ano, mes, 0).getDate())}`; // dia 0 do mês seguinte
 }
 
-/** Filtros iniciais: foco cardiorrespiratório (IX e X) e todo o período disponível. */
+/** Filtros iniciais: todos os capítulos, todo o período disponível e sem comparação. */
 export function filtrosPadrao(meta: Meta): Filtros {
   const { competencia_min: min, competencia_max: max } = meta.periodo;
   return {
-    capitulo_ids: ["IX", "X"],
+    capitulo_ids: [],
     grupo_ids: [],
     cid_codigos: [],
     uf: "",
@@ -24,7 +24,7 @@ export function filtrosPadrao(meta: Meta): Filtros {
     sexos: [],
     carater: [],
     complexidade: [],
-    comparacao: "periodo_anterior",
+    comparacao: "nenhuma",
   };
 }
 

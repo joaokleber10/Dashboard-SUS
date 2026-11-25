@@ -198,32 +198,48 @@ body {
 
 .painel-grid-primario {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px 20px;
   align-items: start;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 960px) {
+  .painel-grid-primario {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.painel-grid-primario > * {
+  min-width: 0;
 }
 
 .painel-grid-primario .grupo,
 .painel-grid-primario .campo {
   margin-bottom: 0;
+  min-width: 0;
 }
 
-.painel-linha-capitulos {
-  padding-top: 12px;
-  margin-bottom: 12px;
-  border-top: 1px solid var(--borda);
+.painel-grid-primario .grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.painel-linha-capitulos .grupo {
-  margin-bottom: 0;
+.painel-grid-primario .grupo legend {
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.painel-grid-primario .atalhos {
+  margin: 0;
 }
 
 .painel-grid-chips {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px 16px;
-  padding-top: 12px;
+  gap: 14px 20px;
+  padding-top: 14px;
   border-top: 1px solid var(--borda);
 }
 
@@ -293,42 +309,49 @@ body {
 .datas {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .datas input,
 .campo select,
 .campo input[type="text"],
-.campo input[type="search"] {
+.campo input[type="search"],
+.cid-input {
   width: 100%;
-  padding: 6px 8px;
+  min-width: 0;
+  height: 36px;
+  padding: 6px 10px;
   border: 1px solid var(--borda-forte);
   border-radius: 6px;
   background: var(--superficie);
   color: var(--texto);
   font: inherit;
   font-size: 0.85rem;
+  line-height: 1.2;
 }
 
 .datas input:focus,
 .campo select:focus,
-.campo input:focus {
+.campo input:focus,
+.cid-input:focus {
   outline: 2px solid color-mix(in srgb, var(--azul) 35%, transparent);
   border-color: var(--azul);
 }
 
 .atalhos {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
   margin: 8px 0;
 }
 
 .campo {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   font-size: 0.85rem;
   font-weight: 600;
+  line-height: 1.3;
   margin-bottom: 16px;
 }
 
@@ -366,12 +389,15 @@ button:disabled {
 
 .group-select-trigger {
   width: 100%;
+  min-width: 0;
+  height: 36px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 6px 10px;
   font-size: 0.85rem;
+  line-height: 1.2;
   text-align: left;
   border: 1px solid var(--borda-forte);
   border-radius: 6px;
@@ -381,6 +407,11 @@ button:disabled {
 
 .group-select-menu,
 .group-select-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 40;
   margin-top: 6px;
   padding: 8px;
   border: 1px solid var(--borda-forte);

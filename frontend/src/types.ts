@@ -85,7 +85,7 @@ export interface Filtros {
   sexos: string[];
   carater: string[];
   complexidade: string[];
-  comparacao: "periodo_anterior" | "ano_anterior";
+  comparacao: "nenhuma" | "periodo_anterior" | "ano_anterior";
 }
 
 export interface Agregados {

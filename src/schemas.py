@@ -31,7 +31,7 @@ class Filtros(BaseModel):
     sexos: list[str] = Field(default_factory=list)
     carater: list[str] = Field(default_factory=list)
     complexidade: list[str] = Field(default_factory=list)
-    comparacao: Literal["periodo_anterior", "ano_anterior"] = "periodo_anterior"
+    comparacao: Literal["nenhuma", "periodo_anterior", "ano_anterior"] = "periodo_anterior"
 
     @field_validator("capitulo_ids", "grupo_ids", "faixas_etarias", "sexos", "carater", "complexidade")
     @classmethod

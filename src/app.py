@@ -45,7 +45,7 @@ def filtros_dep(
     sexos: Annotated[list[str], Query()] = [],
     carater: Annotated[list[str], Query()] = [],
     complexidade: Annotated[list[str], Query()] = [],
-    comparacao: Literal["periodo_anterior", "ano_anterior"] = "periodo_anterior",
+    comparacao: Literal["nenhuma", "periodo_anterior", "ano_anterior"] = "periodo_anterior",
 ) -> Filtros:
     try:
         return Filtros(capitulo_ids=capitulo_ids, grupo_ids=grupo_ids, cid_codigos=cid_codigos, uf=uf,
