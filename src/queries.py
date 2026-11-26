@@ -222,3 +222,38 @@ def top_cid(db, f: "Filtros", limite: int = 10) -> dict:
         "percentual": _pct(n, total),
     } for cid3, cap, n, obitos in linhas]
     return {"total_com_cid": total, "itens": itens}
+
+
+# ------------------------------------------------------------ exportação CSV
+# (nome da coluna no CSV, expressão SQL). Sem n_aih: o arquivo não precisa identificar a AIH.
+COLUNAS_EXPORT = [
+    ("data_internacao", "CAST(data_internacao AS DATE)"),
+    ("data_saida", "CAST(data_saida AS DATE)"),
+    ("uf", "uf"),
+    ("municipio_res", "municipio_res"),
+    ("diag_princ", "diag_princ"),
+    ("cid3", "cid3"),
+    ("capitulo_id", "capitulo_id"),
+    ("grupo_id", "grupo_id"),
+    ("sexo", "sexo"),
+    ("faixa_etaria", "faixa_etaria"),
+    ("idade_anos", "round(idade_anos, 2)"),
+    ("carater", "carater"),
+    ("complexidade", "complexidade"),
+    ("especialidade", "especialidade"),
+    ("dias_perm", "dias_perm"),
+    ("val_tot", "val_tot"),
+    ("obito", "CAST(obito AS INTEGER)"),
+]
+
+
+def contar(db, f: "Filtros") -> int:
+    where, params = build_where(f)
+    return int(db.execute(f"SELECT count(*) FROM {TABELA}{where}", params).fetchone()[0])
+
+
+def consulta_export(f: "Filtros", limite: int) -> tuple[str, list]:
+    where, params = build_where(f)
+    colunas = ", ".join(f"{expr} AS {nome}" for nome, expr in COLUNAS_EXPORT)
+    sql = f"SELECT {colunas} FROM {TABELA}{where} ORDER BY data_internacao, cid3 LIMIT {int(limite)}"
+    return sql, params

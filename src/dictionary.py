@@ -33,31 +33,32 @@ def normalizar_cid(codigo: object) -> Optional[str]:
     return cat if _CID_RE.match(cat) else None
 
 
+# padrao=True: capítulos marcados ao abrir o dashboard (foco cardiorrespiratório).
 # destaque=True: os 6 capítulos exigidos no enunciado. Os demais existem para
 # que o denominador "total geral" e a extensão para outras doenças funcionem.
 CAPITULOS: list[dict] = [
-    {"id": "I",     "nome": "Doenças Infecciosas e Parasitárias",                 "inicio": "A00", "fim": "B99", "destaque": True},
-    {"id": "II",    "nome": "Neoplasias (Tumores)",                               "inicio": "C00", "fim": "D48", "destaque": True},
-    {"id": "III",   "nome": "Doenças do Sangue e Órgãos Hematopoéticos",          "inicio": "D50", "fim": "D89", "destaque": False},
-    {"id": "IV",    "nome": "Doenças Endócrinas, Nutricionais e Metabólicas",     "inicio": "E00", "fim": "E90", "destaque": True},
-    {"id": "V",     "nome": "Transtornos Mentais e Comportamentais",              "inicio": "F00", "fim": "F99", "destaque": False},
-    {"id": "VI",    "nome": "Doenças do Sistema Nervoso",                         "inicio": "G00", "fim": "G99", "destaque": False},
-    {"id": "VII",   "nome": "Doenças do Olho e Anexos",                           "inicio": "H00", "fim": "H59", "destaque": False},
-    {"id": "VIII",  "nome": "Doenças do Ouvido e da Apófise Mastóide",            "inicio": "H60", "fim": "H95", "destaque": False},
-    {"id": "IX",    "nome": "Doenças do Aparelho Circulatório",                   "inicio": "I00", "fim": "I99", "destaque": True},
-    {"id": "X",     "nome": "Doenças do Aparelho Respiratório",                   "inicio": "J00", "fim": "J99", "destaque": True},
-    {"id": "XI",    "nome": "Doenças do Aparelho Digestivo",                      "inicio": "K00", "fim": "K93", "destaque": False},
-    {"id": "XII",   "nome": "Doenças da Pele e do Tecido Subcutâneo",             "inicio": "L00", "fim": "L99", "destaque": False},
-    {"id": "XIII",  "nome": "Doenças do Sistema Osteomuscular e Tecido Conjuntivo","inicio": "M00", "fim": "M99", "destaque": False},
-    {"id": "XIV",   "nome": "Doenças do Aparelho Geniturinário",                  "inicio": "N00", "fim": "N99", "destaque": False},
-    {"id": "XV",    "nome": "Gravidez, Parto e Puerpério",                        "inicio": "O00", "fim": "O99", "destaque": False},
-    {"id": "XVI",   "nome": "Afecções Originadas no Período Perinatal",           "inicio": "P00", "fim": "P96", "destaque": False},
-    {"id": "XVII",  "nome": "Malformações Congênitas e Anomalias Cromossômicas",  "inicio": "Q00", "fim": "Q99", "destaque": False},
-    {"id": "XVIII", "nome": "Sintomas, Sinais e Achados Anormais",                "inicio": "R00", "fim": "R99", "destaque": False},
-    {"id": "XIX",   "nome": "Lesões, Envenenamentos e Outras Causas Externas",    "inicio": "S00", "fim": "T98", "destaque": False},
-    {"id": "XX",    "nome": "Causas Externas de Morbidade e Mortalidade",         "inicio": "V01", "fim": "Y98", "destaque": True},
-    {"id": "XXI",   "nome": "Fatores que Influenciam o Estado de Saúde",          "inicio": "Z00", "fim": "Z99", "destaque": False},
-    {"id": "XXII",  "nome": "Códigos para Propósitos Especiais",                  "inicio": "U00", "fim": "U99", "destaque": False},
+    {"id": "I",     "nome": "Doenças Infecciosas e Parasitárias",                 "inicio": "A00", "fim": "B99", "destaque": True, "padrao": False},
+    {"id": "II",    "nome": "Neoplasias (Tumores)",                               "inicio": "C00", "fim": "D48", "destaque": True, "padrao": False},
+    {"id": "III",   "nome": "Doenças do Sangue e Órgãos Hematopoéticos",          "inicio": "D50", "fim": "D89", "destaque": False, "padrao": False},
+    {"id": "IV",    "nome": "Doenças Endócrinas, Nutricionais e Metabólicas",     "inicio": "E00", "fim": "E90", "destaque": True, "padrao": False},
+    {"id": "V",     "nome": "Transtornos Mentais e Comportamentais",              "inicio": "F00", "fim": "F99", "destaque": False, "padrao": False},
+    {"id": "VI",    "nome": "Doenças do Sistema Nervoso",                         "inicio": "G00", "fim": "G99", "destaque": False, "padrao": False},
+    {"id": "VII",   "nome": "Doenças do Olho e Anexos",                           "inicio": "H00", "fim": "H59", "destaque": False, "padrao": False},
+    {"id": "VIII",  "nome": "Doenças do Ouvido e da Apófise Mastóide",            "inicio": "H60", "fim": "H95", "destaque": False, "padrao": False},
+    {"id": "IX",    "nome": "Doenças do Aparelho Circulatório",                   "inicio": "I00", "fim": "I99", "destaque": True, "padrao": True},
+    {"id": "X",     "nome": "Doenças do Aparelho Respiratório",                   "inicio": "J00", "fim": "J99", "destaque": True, "padrao": True},
+    {"id": "XI",    "nome": "Doenças do Aparelho Digestivo",                      "inicio": "K00", "fim": "K93", "destaque": False, "padrao": False},
+    {"id": "XII",   "nome": "Doenças da Pele e do Tecido Subcutâneo",             "inicio": "L00", "fim": "L99", "destaque": False, "padrao": False},
+    {"id": "XIII",  "nome": "Doenças do Sistema Osteomuscular e Tecido Conjuntivo","inicio": "M00", "fim": "M99", "destaque": False, "padrao": False},
+    {"id": "XIV",   "nome": "Doenças do Aparelho Geniturinário",                  "inicio": "N00", "fim": "N99", "destaque": False, "padrao": False},
+    {"id": "XV",    "nome": "Gravidez, Parto e Puerpério",                        "inicio": "O00", "fim": "O99", "destaque": False, "padrao": False},
+    {"id": "XVI",   "nome": "Afecções Originadas no Período Perinatal",           "inicio": "P00", "fim": "P96", "destaque": False, "padrao": False},
+    {"id": "XVII",  "nome": "Malformações Congênitas e Anomalias Cromossômicas",  "inicio": "Q00", "fim": "Q99", "destaque": False, "padrao": False},
+    {"id": "XVIII", "nome": "Sintomas, Sinais e Achados Anormais",                "inicio": "R00", "fim": "R99", "destaque": False, "padrao": False},
+    {"id": "XIX",   "nome": "Lesões, Envenenamentos e Outras Causas Externas",    "inicio": "S00", "fim": "T98", "destaque": False, "padrao": False},
+    {"id": "XX",    "nome": "Causas Externas de Morbidade e Mortalidade",         "inicio": "V01", "fim": "Y98", "destaque": True, "padrao": False},
+    {"id": "XXI",   "nome": "Fatores que Influenciam o Estado de Saúde",          "inicio": "Z00", "fim": "Z99", "destaque": False, "padrao": False},
+    {"id": "XXII",  "nome": "Códigos para Propósitos Especiais",                  "inicio": "U00", "fim": "U99", "destaque": False, "padrao": False},
 ]
 
 # Subgrupos nomeados de interesse (não se sobrepõem).

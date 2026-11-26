@@ -76,3 +76,8 @@ def test_idade_cod5_cem_anos_ou_mais():
     assert idade_para_anos(3, 5) == 103.0
     assert faixa_etaria(idade_para_anos(0, 5)) == "65+"
     assert idade_para_anos(10, 9) is None   # código desconhecido continua None
+
+
+def test_capitulos_padrao_vem_do_dicionario():
+    assert [c["id"] for c in CAPITULOS if c["padrao"]] == ["IX", "X"]
+    assert all(c["destaque"] for c in CAPITULOS if c["padrao"])

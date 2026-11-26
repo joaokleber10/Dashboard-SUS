@@ -71,6 +71,7 @@ def construir_config(argv: Optional[list[str]] = None) -> tuple[Config, argparse
         pass
     p = argparse.ArgumentParser(description="ETL SIH/SUS (RD)")
     p.add_argument("--uf", default=os.getenv("ETL_UF", "PB"), help="UF ou lista separada por vírgula")
+    p.add_argument("--source", default=os.getenv("ETL_SOURCE", "SIH"), help="fonte de dados (hoje: SIH)")
     p.add_argument("--start", type=int, default=int(os.getenv("ETL_YEAR_START", "2023")))
     p.add_argument("--end", type=int, default=int(os.getenv("ETL_YEAR_END", "2024")))
     p.add_argument("--force", action="store_true", help="reprocessa competências já existentes")
@@ -78,6 +79,8 @@ def construir_config(argv: Optional[list[str]] = None) -> tuple[Config, argparse
     p.add_argument("--skip-load", action="store_true", help="não recria a tabela no DuckDB")
     args = p.parse_args(argv)
 
+    if args.source.strip().upper() != "SIH":
+        p.error(f"fonte {args.source!r} ainda não suportada (disponível: SIH)")
     ufs = [u.strip().upper() for u in args.uf.split(",") if u.strip()]
     invalidas = [u for u in ufs if not uf_valida(u)]
     if invalidas:

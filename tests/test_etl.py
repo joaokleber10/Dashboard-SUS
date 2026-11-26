@@ -130,3 +130,9 @@ def test_cod_idade_5_nao_gera_faixa_nula():
     raw["COD_IDADE"] = [5, 5]
     limpo, _, rel = limpar_sih(raw, "PB", 2023, 1)
     assert rel.faixa_etaria_nula == 0 and (limpo["faixa_etaria"] == "65+").all()
+
+
+def test_fonte_nao_suportada_falha_com_mensagem_clara():
+    from src.etl import construir_config
+    with pytest.raises(SystemExit):
+        construir_config(["--uf", "PB", "--source", "SIM"])

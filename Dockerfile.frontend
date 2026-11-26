@@ -3,8 +3,10 @@ ARG NODE_VERSION=20
 FROM node:${NODE_VERSION}-alpine AS build
 
 WORKDIR /app
-COPY frontend/package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+# Só o package.json (sem o package-lock.json): um lockfile gerado no Windows pode não trazer os
+# binários nativos do Linux (rollup/esbuild) e quebrar o build. O npm resolve de novo dentro do Linux.
+COPY frontend/package.json ./
+RUN npm install
 
 COPY frontend/ ./
 ARG VITE_API_URL=http://localhost:8000

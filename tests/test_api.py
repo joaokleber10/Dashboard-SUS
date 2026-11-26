@@ -23,8 +23,11 @@ def client(tmp_path, monkeypatch):
     con.execute("""CREATE TABLE internacoes (uf VARCHAR, data_internacao TIMESTAMP, ano_mes VARCHAR,
         competencia VARCHAR, capitulo_id VARCHAR, grupo_id VARCHAR, cid3 VARCHAR, faixa_etaria VARCHAR,
         sexo VARCHAR, carater VARCHAR, complexidade VARCHAR, municipio_res VARCHAR, obito BOOLEAN,
-        dias_perm DOUBLE, val_tot DOUBLE)""")
-    con.execute(f"INSERT INTO internacoes VALUES {LINHAS}")
+        dias_perm DOUBLE, val_tot DOUBLE, n_aih VARCHAR, diag_princ VARCHAR, data_saida TIMESTAMP,
+        idade_anos DOUBLE, especialidade VARCHAR)""")
+    con.execute("""INSERT INTO internacoes (uf, data_internacao, ano_mes, competencia, capitulo_id, grupo_id, cid3,
+        faixa_etaria, sexo, carater, complexidade, municipio_res, obito, dias_perm, val_tot)
+        VALUES """ + LINHAS)
     con.close()
     monkeypatch.setenv("DUCKDB_PATH", str(caminho))
     dbmod.fechar()
@@ -115,3 +118,38 @@ def test_top_cid(client):
     assert {i["cid3"] for i in ix["itens"]} == {"I21", "I10", "I64"}
     assert client.get("/top-cid", params={"limite": 0}).status_code == 422
     assert client.get("/top-cid", params={"uf": "SP"}).json()["itens"] == []
+
+
+def test_export_csv(client):
+    r = client.get("/export.csv")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
+    assert 'attachment; filename="internacoes.csv"' in r.headers["content-disposition"]
+    assert r.headers["x-total-registros"] == "6" and r.headers["x-registros-exportados"] == "6"
+    linhas = r.content.decode("utf-8-sig").strip().splitlines()
+    assert linhas[0].startswith("data_internacao,data_saida,uf,municipio_res") and len(linhas) == 7
+    assert "2023-01-10,,PB,250750" in linhas[1]                       # data sem hora, data_saida vazia
+
+
+def test_export_csv_filtros_e_separador(client):
+    r = client.get("/export.csv", params={"capitulo_ids": ["X"], "separador": ";", "uf": "PB"})
+    linhas = r.content.decode("utf-8-sig").strip().splitlines()
+    assert len(linhas) == 4 and linhas[0].split(";")[2] == "uf"
+    assert 'filename="internacoes_PB.csv"' in r.headers["content-disposition"]
+    vazio = client.get("/export.csv", params={"uf": "SP"})
+    assert len(vazio.content.decode("utf-8-sig").strip().splitlines()) == 1     # só o cabeçalho
+
+
+def test_export_csv_validacao_e_limite(client, monkeypatch):
+    assert client.get("/export.csv", params={"uf": "XX"}).status_code == 422
+    assert client.get("/export.csv", params={"separador": "|"}).status_code == 422
+    monkeypatch.setenv("EXPORT_MAX_ROWS", "2")
+    r = client.get("/export.csv")
+    assert len(r.content.decode("utf-8-sig").strip().splitlines()) == 3
+    assert r.headers["x-total-registros"] == "6" and r.headers["x-registros-exportados"] == "2"
+
+
+def test_meta_informa_limite_e_capitulos_padrao(client, monkeypatch):
+    monkeypatch.setenv("EXPORT_MAX_ROWS", "1234")
+    m = client.get("/meta/filtros").json()
+    assert m["export_max_linhas"] == 1234
+    assert [c["id"] for c in m["capitulos"] if c["padrao"]] == ["IX", "X"]

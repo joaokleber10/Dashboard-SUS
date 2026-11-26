@@ -1,22 +1,7 @@
-export interface Opcao {
-  id: string;
-  nome: string;
-}
-export interface Capitulo extends Opcao {
-  inicio: string;
-  fim: string;
-  destaque: boolean;
-}
-export interface FaixaEtaria {
-  id: string;
-  min: number;
-  max: number | null;
-}
-export interface Uf {
-  sigla: string;
-  codigo: number;
-  nome: string;
-}
+export interface Opcao { id: string; nome: string }
+export interface Capitulo extends Opcao { inicio: string; fim: string; destaque: boolean; padrao: boolean }
+export interface FaixaEtaria { id: string; min: number; max: number | null }
+export interface Uf { sigla: string; codigo: number; nome: string }
 
 export interface Meta {
   capitulos: Capitulo[];
@@ -26,6 +11,7 @@ export interface Meta {
   complexidades: Opcao[];
   ufs: Uf[];
   ufs_disponiveis: string[];
+  export_max_linhas: number;
   periodo: {
     data_min: string | null;
     data_max: string | null;
@@ -56,43 +42,19 @@ export interface Agregados {
 }
 
 export interface KpisResp {
-  atual: Agregados & {
-    total_geral: number;
-    proporcao_total_geral: number | null;
-  };
+  atual: Agregados & { total_geral: number; proporcao_total_geral: number | null };
   anterior: Agregados | null;
   variacao_pct: Record<string, number | null> | null;
   periodo_anterior: { inicio: string; fim: string } | null;
   comparacao: string;
 }
 
-export interface Ponto {
-  ano_mes: string;
-  casos: number;
-  obitos: number;
-}
-export interface SerieItem {
-  id: string;
-  nome: string;
-  pontos: Ponto[];
-}
-export interface SerieResp {
-  agrupar_por: string;
-  meses: string[];
-  series: SerieItem[];
-}
+export interface Ponto { ano_mes: string; casos: number; obitos: number }
+export interface SerieItem { id: string; nome: string; pontos: Ponto[] }
+export interface SerieResp { agrupar_por: string; meses: string[]; series: SerieItem[] }
 
-export interface FaixaDemografia {
-  faixa: string;
-  M: number;
-  F: number;
-  I: number;
-  total: number;
-}
-export interface DemografiaResp {
-  faixas: FaixaDemografia[];
-  sem_faixa: number;
-}
+export interface FaixaDemografia { faixa: string; M: number; F: number; I: number; total: number }
+export interface DemografiaResp { faixas: FaixaDemografia[]; sem_faixa: number }
 
 export interface ItemCid {
   cid3: string;
@@ -102,7 +64,4 @@ export interface ItemCid {
   obitos: number;
   percentual: number | null;
 }
-export interface TopCidResp {
-  total_com_cid: number;
-  itens: ItemCid[];
-}
+export interface TopCidResp { total_com_cid: number; itens: ItemCid[] }
