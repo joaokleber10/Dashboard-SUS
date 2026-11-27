@@ -1,4 +1,4 @@
-import type { KpisResp } from "../types";
+import type { KpisResp } from "../../types";
 
 const nf = new Intl.NumberFormat("pt-BR");
 const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
@@ -67,7 +67,8 @@ export default function KpiCards({ dados }: { dados: KpisResp }) {
       : "vs. período anterior";
 
   return (
-    <section className="cards">
+    <section className="kpi-section" aria-label="Indicadores do recorte selecionado">
+      <div className="cards">
       <Card
         titulo="Internações"
         valor={nf.format(a.total)}
@@ -129,12 +130,12 @@ export default function KpiCards({ dados }: { dados: KpisResp }) {
         }
         title="Valor total aprovado das AIHs no SIH/SUS (campo VAL_TOT — soma dos serviços hospitalares, profissionais e complementares)."
       />
+      </div>
       {a.municipios_atendidos !== undefined && (
-        <Card
-          titulo="Municípios atendidos"
-          valor={nf.format(a.municipios_atendidos)}
-          extra="Municípios de residência no recorte"
-        />
+        <p className="kpi-supplement">
+          <strong>{nf.format(a.municipios_atendidos)}</strong> municípios atendidos
+          <span>Municípios de residência no recorte</span>
+        </p>
       )}
     </section>
   );

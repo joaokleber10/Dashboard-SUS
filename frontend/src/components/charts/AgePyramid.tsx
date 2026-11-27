@@ -10,17 +10,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { buscarDemografia } from "../api";
-import type { Filtros } from "../types";
-import { ErroBanner } from "./Estados";
+import { buscarDemografia } from "../../services/api";
+import type { Filtros } from "../../types";
+import { ErroBanner } from "../common/ErrorBanner";
 
 const nf = new Intl.NumberFormat("pt-BR");
 const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
-export default function AgePyramid({ filtros }: { filtros: Filtros }) {
+export default function AgePyramid({ filtros, ativo = true }: { filtros: Filtros; ativo?: boolean }) {
   const q = useQuery({
     queryKey: ["demografia", filtros],
     queryFn: () => buscarDemografia(filtros),
+    enabled: ativo,
     placeholderData: keepPreviousData,
   });
 
@@ -53,7 +54,7 @@ export default function AgePyramid({ filtros }: { filtros: Filtros }) {
       {q.data && vazio && (
         <p className="vazio">Nenhum dado para os filtros selecionados.</p>
       )}
-      {q.data && !vazio && (
+      {ativo && q.data && !vazio && (
         <div className={q.isFetching ? "grafico atualizando" : "grafico"}>
           <ResponsiveContainer width="100%" height={340}>
             <BarChart
@@ -80,8 +81,8 @@ export default function AgePyramid({ filtros }: { filtros: Filtros }) {
                 ]}
               />
               <Legend />
-              <Bar dataKey="Masculino" stackId="piramide" fill="#2563eb" />
-              <Bar dataKey="Feminino" stackId="piramide" fill="#db2777" />
+              <Bar dataKey="Masculino" stackId="piramide" fill="var(--chart-primary)" />
+              <Bar dataKey="Feminino" stackId="piramide" fill="var(--chart-secondary)" />
             </BarChart>
           </ResponsiveContainer>
 

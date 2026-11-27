@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { GrupoDinamico } from "../types";
+import type { GrupoDinamico } from "../../types";
 
 export interface GroupSelectProps {
   grupos: GrupoDinamico[];

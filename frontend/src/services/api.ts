@@ -12,8 +12,9 @@ import type {
   OrdemMunicipios,
   SerieResp,
   TopCidResp,
-} from "./types";
+} from "../types";
 
+// Endereco base da API. Pode ser sobrescrito pela variavel VITE_API_URL.
 const BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 export class ApiError extends Error {

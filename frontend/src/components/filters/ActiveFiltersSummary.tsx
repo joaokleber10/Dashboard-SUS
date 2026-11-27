@@ -1,6 +1,7 @@
-import { urlExportarCsv } from "../api";
-import { periodoCompleto } from "../periodo";
-import type { Filtros, Meta } from "../types";
+import { useId, useState } from "react";
+import { urlExportarCsv } from "../../services/api";
+import { periodoCompleto } from "../../services/periodo";
+import type { Filtros, Meta } from "../../types";
 
 export interface ActiveFiltersSummaryProps {
   meta: Meta;
@@ -19,6 +20,8 @@ export default function ActiveFiltersSummary({
   filtros,
   onChange,
 }: ActiveFiltersSummaryProps) {
+  const [mostrarTodos, setMostrarTodos] = useState(false);
+  const listaId = useId();
   const completo = periodoCompleto(meta);
   const pills: Pill[] = [];
 
@@ -48,6 +51,24 @@ export default function ActiveFiltersSummary({
       chave: `mun:${filtros.municipio}`,
       rotulo: `Município: ${filtros.municipio === meta.foco?.municipio_codigo && meta.foco.municipio_nome ? meta.foco.municipio_nome : filtros.municipio}`,
       aoRemover: () => onChange({ ...filtros, municipio: "" }),
+    });
+  }
+
+  if (filtros.municipio_ref === "atendimento") {
+    pills.push({
+      chave: "municipio-ref",
+      rotulo: "Municípios por local do atendimento",
+      aoRemover: () => onChange({ ...filtros, municipio_ref: "residencia" }),
+    });
+  }
+
+  if (filtros.comparacao !== "nenhuma") {
+    pills.push({
+      chave: "comparacao",
+      rotulo: filtros.comparacao === "periodo_anterior"
+        ? "Comparação: período anterior"
+        : "Comparação: ano anterior",
+      aoRemover: () => onChange({ ...filtros, comparacao: "nenhuma" }),
     });
   }
 
@@ -158,6 +179,8 @@ export default function ActiveFiltersSummary({
       cid_codigos: [],
       uf: "",
       municipio: "",
+      municipio_ref: "residencia",
+      comparacao: "nenhuma",
       fontes: [],
       faixas_etarias: [],
       sexos: [],
@@ -165,6 +188,8 @@ export default function ActiveFiltersSummary({
       complexidade: [],
     });
   };
+
+  const pillsVisiveis = mostrarTodos ? pills : pills.slice(0, 3);
 
   return (
     <section
@@ -181,6 +206,7 @@ export default function ActiveFiltersSummary({
     >
       <div
         className="chips"
+        id={listaId}
         style={{ alignItems: "center", flex: "1 1 auto", minWidth: 0 }}
       >
         <span
@@ -191,14 +217,14 @@ export default function ActiveFiltersSummary({
             marginRight: 2,
           }}
         >
-          Filtros ativos:
+          Filtros ativos{pills.length > 0 ? ` (${pills.length})` : ""}:
         </span>
         {pills.length === 0 ? (
           <span style={{ fontSize: "0.82rem", color: "var(--suave)" }}>
             Nenhum filtro restritivo (todos os registros)
           </span>
         ) : (
-          pills.map((pill) => (
+          pillsVisiveis.map((pill) => (
             <span
               key={pill.chave}
               className="chip ativo"
@@ -221,6 +247,16 @@ export default function ActiveFiltersSummary({
               </button>
             </span>
           ))
+        )}
+        {pills.length > 3 && (
+          <button
+            type="button"
+            aria-expanded={mostrarTodos}
+            aria-controls={listaId}
+            onClick={() => setMostrarTodos(!mostrarTodos)}
+          >
+            {mostrarTodos ? "Recolher resumo" : `Ver mais ${pills.length - 3}`}
+          </button>
         )}
       </div>
 
@@ -249,9 +285,9 @@ export default function ActiveFiltersSummary({
             fontWeight: 600,
             padding: "5px 12px",
             borderRadius: 6,
-            border: "1px solid var(--azul)",
-            background: "var(--azul)",
-            color: "#fff",
+            border: "1px solid var(--acao-bg)",
+            background: "var(--acao-bg)",
+            color: "var(--acao-texto)",
             textDecoration: "none",
           }}
         >

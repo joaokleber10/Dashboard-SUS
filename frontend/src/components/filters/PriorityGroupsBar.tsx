@@ -1,4 +1,4 @@
-import type { Filtros, Meta } from "../types";
+import type { Filtros, Meta } from "../../types";
 
 export interface PriorityGroupsBarProps {
   meta: Meta;

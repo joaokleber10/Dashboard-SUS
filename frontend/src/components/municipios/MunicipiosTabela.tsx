@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { buscarMunicipios } from "../api";
-import type { Filtros, Meta, OrdemMunicipios } from "../types";
-import { ErroBanner } from "./Estados";
+import { buscarMunicipios } from "../../services/api";
+import type { Filtros, Meta, OrdemMunicipios } from "../../types";
+import { ErroBanner } from "../common/ErrorBanner";
 
 const nf = new Intl.NumberFormat("pt-BR");
 const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
@@ -25,9 +25,10 @@ interface Props {
   meta: Meta;
   filtros: Filtros;
   onChange: (f: Filtros) => void;
+  ativo?: boolean;
 }
 
-export default function MunicipiosTabela({ meta, filtros, onChange }: Props) {
+export default function MunicipiosTabela({ meta, filtros, onChange, ativo = true }: Props) {
   const [ordem, setOrdem] = useState<OrdemMunicipios>("casos");
   const [dir, setDir] = useState<"asc" | "desc">("desc");
   const [pagina, setPagina] = useState(1);
@@ -44,6 +45,7 @@ export default function MunicipiosTabela({ meta, filtros, onChange }: Props) {
   const q = useQuery({
     queryKey: ["municipios", filtros, ordem, dir, pagina, buscaAtual],
     queryFn: () => buscarMunicipios(filtros, ordem, dir, pagina, buscaAtual),
+    enabled: ativo,
     placeholderData: keepPreviousData,
   });
   const paginas = q.data

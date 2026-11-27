@@ -1,4 +1,4 @@
-import type { Filtros, Meta } from "./types";
+import type { Filtros, Meta } from "../types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -11,7 +11,6 @@ export function ultimoDia(competencia: string): string {
 
 /** Filtros iniciais: capítulos padrão (cardiorrespiratórios), UF de foco, todo o período e sem comparação. */
 export function filtrosPadrao(meta: Meta): Filtros {
-  const { competencia_min: min, competencia_max: max } = meta.periodo;
   return {
     capitulo_ids: meta.capitulos.filter((c) => c.padrao).map((c) => c.id),
     grupo_ids: [],
@@ -22,8 +21,7 @@ export function filtrosPadrao(meta: Meta): Filtros {
     municipio: "",
     municipio_ref: "residencia",
     fontes: [],
-    data_inicio: min ? primeiroDia(min) : "",
-    data_fim: max ? ultimoDia(max) : "",
+    ...periodoCompleto(meta),
     faixas_etarias: [],
     sexos: [],
     carater: [],
@@ -35,10 +33,13 @@ export function filtrosPadrao(meta: Meta): Filtros {
 export function ultimoMes(
   meta: Meta,
 ): { data_inicio: string; data_fim: string } | null {
-  const max = meta.periodo.competencia_max;
-  return max
-    ? { data_inicio: primeiroDia(max), data_fim: ultimoDia(max) }
-    : null;
+  const completo = periodoCompleto(meta);
+  if (!completo.data_fim) return null;
+  const inicioMes = primeiroDia(completo.data_fim.slice(0, 7));
+  return {
+    data_inicio: completo.data_inicio > inicioMes ? completo.data_inicio : inicioMes,
+    data_fim: completo.data_fim,
+  };
 }
 
 export function periodoCompleto(meta: Meta): {
@@ -47,7 +48,8 @@ export function periodoCompleto(meta: Meta): {
 } {
   const { competencia_min: min, competencia_max: max } = meta.periodo;
   return {
-    data_inicio: min ? primeiroDia(min) : "",
-    data_fim: max ? ultimoDia(max) : "",
+    // Competência é somente fallback quando o catálogo não informa datas de internação.
+    data_inicio: meta.periodo.data_min ?? (min ? primeiroDia(min) : ""),
+    data_fim: meta.periodo.data_max ?? (max ? ultimoDia(max) : ""),
   };
 }

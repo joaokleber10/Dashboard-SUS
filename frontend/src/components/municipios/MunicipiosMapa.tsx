@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { buscarGeo, buscarMapa } from "../api";
-import type { Filtros, GeoJson, ItemMunicipio, Meta } from "../types";
-import { ErroBanner } from "./Estados";
+import { buscarGeo, buscarMapa } from "../../services/api";
+import type { Filtros, GeoJson, ItemMunicipio, Meta } from "../../types";
+import { ErroBanner } from "../common/ErrorBanner";
 
 const nf = new Intl.NumberFormat("pt-BR");
 const nf1 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
@@ -58,16 +58,17 @@ function montarCaminhos(geo: GeoJson) {
 function cor(valor: number | null | undefined, max: number): string {
   if (valor == null || valor <= 0 || max <= 0) return "var(--borda)";
   const t = Math.sqrt(Math.min(valor / max, 1)); // raiz: realça diferenças entre os pequenos
-  return `hsl(205 80% ${92 - t * 62}%)`;
+  return `color-mix(in srgb, var(--chart-map-start) ${100 - t * 100}%, var(--chart-map-end) ${t * 100}%)`;
 }
 
 interface Props {
   meta: Meta;
   filtros: Filtros;
   onChange: (f: Filtros) => void;
+  ativo?: boolean;
 }
 
-export default function MunicipiosMapa({ meta, filtros, onChange }: Props) {
+export default function MunicipiosMapa({ meta, filtros, onChange, ativo = true }: Props) {
   const [metrica, setMetrica] = useState<Metrica>("casos");
   const [dica, setDica] = useState<ItemMunicipio | null>(null);
   const uf =
@@ -77,13 +78,14 @@ export default function MunicipiosMapa({ meta, filtros, onChange }: Props) {
   const geo = useQuery({
     queryKey: ["geo", uf],
     queryFn: () => buscarGeo(uf),
-    enabled: !!uf,
+    enabled: ativo && !!uf,
     staleTime: Infinity,
     retry: false,
   });
   const dados = useQuery({
     queryKey: ["mapa", filtros],
     queryFn: () => buscarMapa(filtros),
+    enabled: ativo,
     placeholderData: keepPreviousData,
   });
 
@@ -132,7 +134,7 @@ export default function MunicipiosMapa({ meta, filtros, onChange }: Props) {
       {uf && (geo.isPending || dados.isPending) && (
         <div className="skeleton alto" />
       )}
-      {forma && dados.data && (
+      {ativo && forma && dados.data && (
         <div className={dados.isFetching ? "mapa atualizando" : "mapa"}>
           <svg
             viewBox={`0 0 ${forma.largura} ${forma.altura}`}

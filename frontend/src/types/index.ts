@@ -210,3 +210,4 @@ export type OrdemMunicipios =
   | "permanencia_media"
   | "custo_total"
   | "nome";
+// Tipos TypeScript que descrevem filtros e respostas da API.

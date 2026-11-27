@@ -8,9 +8,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { buscarTopCid } from "../api";
-import type { Filtros, ItemCid } from "../types";
-import { ErroBanner } from "./Estados";
+import { buscarTopCid } from "../../services/api";
+import type { Filtros, ItemCid } from "../../types";
+import { ErroBanner } from "../common/ErrorBanner";
 
 const nf = new Intl.NumberFormat("pt-BR");
 const nf2 = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
@@ -41,10 +41,11 @@ function DicaCid({
   );
 }
 
-export default function TopCidChart({ filtros }: { filtros: Filtros }) {
+export default function TopCidChart({ filtros, ativo = true }: { filtros: Filtros; ativo?: boolean }) {
   const q = useQuery({
     queryKey: ["top-cid", filtros],
     queryFn: () => buscarTopCid(filtros, 10),
+    enabled: ativo,
     placeholderData: keepPreviousData,
   });
 
@@ -58,7 +59,7 @@ export default function TopCidChart({ filtros }: { filtros: Filtros }) {
       {q.data && q.data.itens.length === 0 && (
         <p className="vazio">Nenhum dado para os filtros selecionados.</p>
       )}
-      {q.data && q.data.itens.length > 0 && (
+      {ativo && q.data && q.data.itens.length > 0 && (
         <div className={q.isFetching ? "grafico atualizando" : "grafico"}>
           <ResponsiveContainer width="100%" height={340}>
             <BarChart
@@ -80,7 +81,7 @@ export default function TopCidChart({ filtros }: { filtros: Filtros }) {
               <Bar
                 dataKey="casos"
                 name="Internações"
-                fill="#0891b2"
+                fill="var(--chart-category)"
                 radius={[0, 4, 4, 0]}
               />
             </BarChart>
