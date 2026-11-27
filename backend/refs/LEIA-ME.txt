@@ -1,0 +1,10 @@
+Catálogo opcional de nomes de CID-10
+====================================
+Sem arquivo aqui, o dashboard funciona só com os códigos (J18, I21...).
+Para mostrar os nomes das doenças:
+
+1. Baixe do DATASUS o arquivo de categorias da CID-10 (CID-10-CATEGORIAS.CSV: colunas CAT e DESCRICAO).
+2. Salve-o nesta pasta com o nome cid10.csv  (ou aponte outro caminho em CID10_PATH, no .env).
+3. Rode o ETL de novo (docker compose up --build, ou python -m src.etl).
+
+Só categorias de 3 caracteres são usadas; linhas de subcategoria (4 caracteres) são ignoradas.
