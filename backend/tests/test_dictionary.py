@@ -79,6 +79,11 @@ def test_idade_cod5_cem_anos_ou_mais():
     assert idade_para_anos(10, 9) is None   # código desconhecido continua None
 
 
+def test_capitulos_padrao_vem_do_dicionario():
+    assert [c["id"] for c in CAPITULOS if c["padrao"]] == ["IX", "X"]
+    assert all(c["destaque"] for c in CAPITULOS if c["padrao"])
+
+
 def test_cid_to_bloco_e_resolver_cid():
     bloco = cid_to_bloco("I21.9")
     assert bloco is not None and bloco["id"] == "I20-I25" and bloco["capitulo"] == "IX"

@@ -5,7 +5,7 @@ services:
   # 1) Coleta/limpeza do SIH e carga no DuckDB. Idempotente: meses já processados são pulados.
   etl:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile.backend
       args:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
@@ -13,7 +13,9 @@ services:
     env_file: .env
     command: python -m src.etl
     volumes:
-      - ./data:/app/data
+      - dados:/app/data
+      - ./backend/refs:/app/refs:ro
+      - ./backend/dados-locais:/app/dados-locais:ro
     restart: "no"
 
   # 2) API FastAPI (lê o DuckDB em modo somente leitura). Só sobe depois que o ETL termina com sucesso.
@@ -24,11 +26,17 @@ services:
       etl:
         condition: service_completed_successfully
     volumes:
-      - ./data:/app/data
+      - dados:/app/data
     ports:
       - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
     healthcheck:
-      test: ["CMD", "python", "-c", "import os,urllib.request as u; u.urlopen('http://localhost:%s/health' % os.getenv('BACKEND_PORT','8000'))"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,urllib.request as u; u.urlopen('http://localhost:%s/health' % os.getenv('BACKEND_PORT','8000'))",
+        ]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -38,7 +46,7 @@ services:
   # 3) Frontend React servido pelo Nginx.
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile.frontend
       args:
         NODE_VERSION: ${NODE_VERSION:-20}

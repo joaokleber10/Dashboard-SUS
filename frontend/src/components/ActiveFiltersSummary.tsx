@@ -46,7 +46,7 @@ export default function ActiveFiltersSummary({
   if (filtros.municipio) {
     pills.push({
       chave: `mun:${filtros.municipio}`,
-      rotulo: `Município: ${filtros.municipio}`,
+      rotulo: `Município: ${filtros.municipio === meta.foco?.municipio_codigo && meta.foco.municipio_nome ? meta.foco.municipio_nome : filtros.municipio}`,
       aoRemover: () => onChange({ ...filtros, municipio: "" }),
     });
   }
@@ -86,6 +86,15 @@ export default function ActiveFiltersSummary({
           ...filtros,
           cid_codigos: filtros.cid_codigos.filter((x) => x !== cid),
         }),
+    });
+  }
+
+  for (const fonte of filtros.fontes) {
+    pills.push({
+      chave: `fonte:${fonte}`,
+      rotulo: `Fonte: ${fonte}`,
+      aoRemover: () =>
+        onChange({ ...filtros, fontes: filtros.fontes.filter((x) => x !== fonte) }),
     });
   }
 
@@ -149,6 +158,7 @@ export default function ActiveFiltersSummary({
       cid_codigos: [],
       uf: "",
       municipio: "",
+      fontes: [],
       faixas_etarias: [],
       sexos: [],
       carater: [],

@@ -44,14 +44,19 @@ def _conexao() -> duckdb.DuckDBPyConnection:
         return _con
 
 
-def get_db() -> Iterator[duckdb.DuckDBPyConnection]:
-    """Dependência do FastAPI: um cursor por requisição."""
+def abrir_cursor() -> duckdb.DuckDBPyConnection:
+    """Cursor novo (quem abre fecha). Levanta 503 se o banco não existe."""
     if not caminho_banco().exists():
         raise HTTPException(status_code=503, detail="Banco de dados não encontrado. Execute o ETL: python -m src.etl")
     try:
-        cur = _conexao().cursor()
+        return _conexao().cursor()
     except duckdb.Error as exc:
         raise HTTPException(status_code=503, detail=f"Não foi possível abrir o banco: {exc}")
+
+
+def get_db() -> Iterator[duckdb.DuckDBPyConnection]:
+    """Dependência do FastAPI: um cursor por requisição."""
+    cur = abrir_cursor()
     try:
         yield cur
     finally:

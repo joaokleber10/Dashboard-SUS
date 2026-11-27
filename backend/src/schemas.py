@@ -1,4 +1,5 @@
 """Modelo único de filtros, reaproveitado por todos os endpoints."""
+import re
 from datetime import date
 from typing import Literal, Optional
 
@@ -31,6 +32,8 @@ class Filtros(BaseModel):
     sexos: list[str] = Field(default_factory=list)
     carater: list[str] = Field(default_factory=list)
     complexidade: list[str] = Field(default_factory=list)
+    fontes: list[str] = Field(default_factory=list)
+    municipio_ref: Literal["residencia", "atendimento"] = "residencia"
     comparacao: Literal["nenhuma", "periodo_anterior", "ano_anterior"] = "periodo_anterior"
 
     @field_validator("capitulo_ids", "grupo_ids", "faixas_etarias", "sexos", "carater", "complexidade")
@@ -43,6 +46,15 @@ class Filtros(BaseModel):
         invalidos = [v for v in limpos if v not in _VALIDOS[info.field_name]]
         if invalidos:
             raise ValueError(f"valores inválidos {invalidos}; aceitos: {sorted(_VALIDOS[info.field_name])}")
+        return list(dict.fromkeys(limpos))
+
+    @field_validator("fontes")
+    @classmethod
+    def _fontes_validas(cls, valores: list[str]):
+        limpos = [v.strip() for v in valores if v and v.strip()]
+        invalidos = [v for v in limpos if not re.fullmatch(r"[\w-]{1,40}", v)]
+        if invalidos:
+            raise ValueError(f"nomes de fonte inválidos: {invalidos}")
         return list(dict.fromkeys(limpos))
 
     @field_validator("cid_codigos")

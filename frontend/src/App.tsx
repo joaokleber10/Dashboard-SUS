@@ -10,7 +10,8 @@ import KpiCards from "./components/KpiCards";
 import TimeSeriesChart from "./components/TimeSeriesChart";
 import AgePyramid from "./components/AgePyramid";
 import TopCidChart from "./components/TopCidChart";
-import TopMunicipios from "./components/TopMunicipios";
+import MunicipiosMapa from "./components/MunicipiosMapa";
+import MunicipiosTabela from "./components/MunicipiosTabela";
 import { ErroBanner, KpiSkeleton } from "./components/Estados";
 
 type Theme = "light" | "dark";
@@ -82,14 +83,6 @@ export default function App() {
     enabled: filtros !== null,
     placeholderData: keepPreviousData,
   });
-
-  const handleSelectMunicipio = (codigo: string) => {
-    setFiltros((prev) =>
-      prev
-        ? { ...prev, municipio: prev.municipio === codigo ? "" : codigo }
-        : prev,
-    );
-  };
 
   const ultimaAtualizacao = formatarAtualizacao(
     meta.data?.periodo.ultima_atualizacao,
@@ -200,9 +193,15 @@ export default function App() {
               <TopCidChart filtros={filtros} />
             </div>
 
-            <TopMunicipios
+            <MunicipiosMapa
+              meta={meta.data}
               filtros={filtros}
-              onSelectMunicipio={handleSelectMunicipio}
+              onChange={setFiltros}
+            />
+            <MunicipiosTabela
+              meta={meta.data}
+              filtros={filtros}
+              onChange={setFiltros}
             />
           </main>
         </div>

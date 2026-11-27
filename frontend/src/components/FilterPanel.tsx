@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { buscarGruposDinamicos, resolverCid } from "../api";
+import { buscarCid, buscarGruposDinamicos, buscarMapa, resolverCid } from "../api";
 import { filtrosPadrao, periodoCompleto, ultimoMes } from "../periodo";
 import type { Filtros, Meta, Opcao } from "../types";
 import GroupSelect from "./GroupSelect";
@@ -46,6 +46,79 @@ function CheckGroup({
   );
 }
 
+/** Busca de subcategoria CID-10 por código ou nome; os escolhidos viram chips removíveis. */
+function BuscaCid({
+  filtros,
+  onChange,
+}: {
+  filtros: Filtros;
+  onChange: (f: Filtros) => void;
+}) {
+  const [texto, setTexto] = useState("");
+  const [termo, setTermo] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setTermo(texto.trim()), 250);
+    return () => clearTimeout(t);
+  }, [texto]);
+  const q = useQuery({
+    queryKey: ["cid-busca", filtros, termo],
+    queryFn: () => buscarCid(filtros, termo),
+    enabled: termo.length >= 2,
+    placeholderData: keepPreviousData,
+  });
+  const add = (cid: string) => {
+    if (!filtros.cid_codigos.includes(cid))
+      onChange({ ...filtros, cid_codigos: [...filtros.cid_codigos, cid] });
+    setTexto("");
+  };
+  return (
+    <fieldset className="grupo busca-cid">
+      <legend>Agravo específico (CID-10)</legend>
+      <input
+        type="search"
+        placeholder="Ex.: I21 ou infarto"
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+      />
+      {termo.length >= 2 &&
+        q.data &&
+        (q.data.itens.length === 0 ? (
+          <small>Nada encontrado nos dados filtrados.</small>
+        ) : (
+          <ul>
+            {q.data.itens.map((i) => (
+              <li key={i.cid3}>
+                <button type="button" onClick={() => add(i.cid3)}>
+                  <strong>{i.cid3}</strong> {i.cid_nome ?? ""}{" "}
+                  <small>({i.casos})</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ))}
+      {filtros.cid_codigos.length > 0 && (
+        <div className="chips">
+          {filtros.cid_codigos.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="chip ativo"
+              onClick={() =>
+                onChange({
+                  ...filtros,
+                  cid_codigos: filtros.cid_codigos.filter((x) => x !== c),
+                })
+              }
+            >
+              {c} ✕
+            </button>
+          ))}
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
 interface Props {
   meta: Meta;
   filtros: Filtros;
@@ -60,6 +133,16 @@ const FilterPanel = memo(function FilterPanel({
   const set = <K extends keyof Filtros>(chave: K, valor: Filtros[K]) =>
     onChange({ ...filtros, [chave]: valor });
   const mes = ultimoMes(meta);
+  const foco = meta.foco;
+
+  const munis = useQuery({
+    queryKey: ["mapa", filtros],
+    queryFn: () => buscarMapa(filtros),
+    placeholderData: keepPreviousData,
+  });
+  const opcoesMunicipio = (munis.data?.itens ?? [])
+    .filter((m) => m.codigo && m.identificado)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
   // Exclui grupo_ids e cid_codigos para que selecionar um grupo nunca recarregue a lista do dropdown
   const filtrosParaGrupos = useMemo<Filtros>(
@@ -79,6 +162,8 @@ const FilterPanel = memo(function FilterPanel({
       filtros.carater,
       filtros.complexidade,
       filtros.comparacao,
+      filtros.municipio_ref,
+      filtros.fontes,
     ],
   );
 
@@ -94,6 +179,8 @@ const FilterPanel = memo(function FilterPanel({
       filtros.sexos,
       filtros.carater,
       filtros.complexidade,
+      filtros.municipio_ref,
+      filtros.fontes,
     ],
     queryFn: () => buscarGruposDinamicos(filtrosParaGrupos),
     placeholderData: keepPreviousData,
@@ -226,6 +313,51 @@ const FilterPanel = memo(function FilterPanel({
               </select>
             </label>
           )}
+          <label className="campo">
+            Município
+            <select
+              value={filtros.municipio}
+              onChange={(e) => set("municipio", e.target.value)}
+            >
+              <option value="">Todos</option>
+              {foco &&
+                !opcoesMunicipio.some(
+                  (m) => m.codigo === foco.municipio_codigo,
+                ) && (
+                  <option value={foco.municipio_codigo}>
+                    {foco.municipio_nome ?? foco.municipio_codigo} (foco, sem
+                    casos no recorte)
+                  </option>
+                )}
+              {opcoesMunicipio.map((m) => (
+                <option key={m.codigo} value={m.codigo!}>
+                  {m.nome}
+                  {m.codigo === foco?.municipio_codigo ? " ★" : ""}
+                </option>
+              ))}
+            </select>
+            {foco && filtros.municipio !== foco.municipio_codigo && (
+              <button
+                type="button"
+                className="atalho-foco"
+                onClick={() => set("municipio", foco.municipio_codigo)}
+              >
+                Ir para {foco.municipio_nome ?? "município em foco"}
+              </button>
+            )}
+          </label>
+          <label className="campo">
+            Município refere-se a
+            <select
+              value={filtros.municipio_ref}
+              onChange={(e) =>
+                set("municipio_ref", e.target.value as Filtros["municipio_ref"])
+              }
+            >
+              <option value="residencia">Residência do paciente</option>
+              <option value="atendimento">Local do atendimento (hospital)</option>
+            </select>
+          </label>
         </div>
 
         <div className="grupo">
@@ -360,9 +492,22 @@ const FilterPanel = memo(function FilterPanel({
             </div>
           )}
         </fieldset>
+
+        <BuscaCid filtros={filtros} onChange={onChange} />
       </div>
 
       <div className="painel-grid-chips">
+        {meta.fontes_disponiveis.length > 1 && (
+          <CheckGroup
+            titulo="Fonte dos dados"
+            opcoes={meta.fontes_disponiveis.map((f) => ({
+              id: f.id,
+              nome: `${f.id === "SIH" ? "SIH/SUS (oficial)" : f.id} · ${f.casos.toLocaleString("pt-BR")}`,
+            }))}
+            valor={filtros.fontes}
+            onChange={(v) => set("fontes", v)}
+          />
+        )}
         <CheckGroup
           titulo="Faixa etária"
           opcoes={meta.faixas_etarias.map((f) => ({

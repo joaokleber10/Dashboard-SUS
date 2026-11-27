@@ -27,6 +27,8 @@ from typing import Callable, Optional
 
 import pandas as pd
 
+from src import geo
+from src.catalogos import carregar_catalogo
 from src.dictionary import (
     cid_to_chapter, cid_to_grupo, faixa_etaria, idade_para_anos, municipio6,
     normalizar_carater, normalizar_cid, normalizar_complexidade, normalizar_sexo,
@@ -71,13 +73,20 @@ def construir_config(argv: Optional[list[str]] = None) -> tuple[Config, argparse
         pass
     p = argparse.ArgumentParser(description="ETL SIH/SUS (RD)")
     p.add_argument("--uf", default=os.getenv("ETL_UF", "PB"), help="UF ou lista separada por vírgula")
+    p.add_argument("--source", default=os.getenv("ETL_SOURCE", "SIH"), help="fonte de dados (hoje: SIH)")
     p.add_argument("--start", type=int, default=int(os.getenv("ETL_YEAR_START", "2023")))
     p.add_argument("--end", type=int, default=int(os.getenv("ETL_YEAR_END", str(date.today().year))))
     p.add_argument("--force", action="store_true", help="reprocessa competências já existentes")
     p.add_argument("--inspect", action="store_true", help="baixa 1 mês e imprime colunas e valores")
     p.add_argument("--skip-load", action="store_true", help="não recria a tabela no DuckDB")
+    p.add_argument("--skip-geo", action="store_true", help="não baixa municípios/malha do IBGE")
+    p.add_argument("--skip-fontes", action="store_true", help="não processa as fontes locais de refs/fontes")
+    p.add_argument("--inspect-fonte", metavar="JSON", help="mostra o arquivo de uma fonte local e o resultado do mapeamento")
+    p.add_argument("--refresh-geo", action="store_true", help="baixa de novo municípios/malha do IBGE")
     args = p.parse_args(argv)
 
+    if args.source.strip().upper() != "SIH":
+        p.error(f"fonte {args.source!r} ainda não suportada (disponível: SIH)")
     ufs = [u.strip().upper() for u in args.uf.split(",") if u.strip()]
     invalidas = [u for u in ufs if not uf_valida(u)]
     if invalidas:
@@ -337,23 +346,76 @@ def processar_competencia(cfg: Config, uf: str, ano: int, mes: int) -> Optional[
 def carregar_duckdb(cfg: Config) -> int:
     """Recria a tabela `internacoes` a partir dos Parquets limpos. Retorna nº de linhas."""
     import duckdb
-    arquivos = list(cfg.processed_dir.glob("uf=*/ano=*/*.parquet"))
-    if not arquivos:
+    sih = list(cfg.processed_dir.glob("uf=*/ano=*/*.parquet"))
+    pasta_fontes = cfg.data_dir / "processed" / "fontes"
+    externas = list(pasta_fontes.glob("*.parquet"))
+    if not sih and not externas:
         raise RuntimeError("Nenhum Parquet processado para carregar no DuckDB.")
     cfg.duckdb_path.parent.mkdir(parents=True, exist_ok=True)
-    glob = str(cfg.processed_dir / "uf=*" / "ano=*" / "*.parquet").replace("'", "''")
+    partes = []
+    if sih:
+        g = str(cfg.processed_dir / "uf=*" / "ano=*" / "*.parquet").replace("'", "''")
+        partes.append(f"SELECT *, 'SIH' AS fonte FROM read_parquet('{g}', union_by_name=true)")
+    if externas:
+        g = str(pasta_fontes / "*.parquet").replace("'", "''")
+        partes.append(f"SELECT * FROM read_parquet('{g}', union_by_name=true)")
     con = duckdb.connect(str(cfg.duckdb_path))
     try:
-        con.execute(
-            f"CREATE OR REPLACE TABLE internacoes AS "
-            f"SELECT * FROM read_parquet('{glob}', union_by_name=true) "
-            f"ORDER BY uf, data_internacao"
-        )
+        con.execute("CREATE OR REPLACE TABLE internacoes AS SELECT * FROM ("
+                    + " UNION ALL BY NAME ".join(partes) + ") ORDER BY uf, data_internacao")
         n = con.execute("SELECT count(*) FROM internacoes").fetchone()[0]
+        _carregar_auxiliares(con, cfg)
     finally:
         con.close()
     log.info("DuckDB %s: tabela internacoes com %d linhas", cfg.duckdb_path, n)
     return n
+
+
+def _carregar_auxiliares(con, cfg: Config) -> None:
+    """Tabelas pequenas de apoio: nomes de municípios (IBGE) e nomes de CID-10 (opcional).
+
+    Sempre criadas (mesmo vazias) para os JOINs da API nunca quebrarem.
+    """
+    con.execute("CREATE OR REPLACE TABLE municipios (codigo6 VARCHAR, municipio_nome VARCHAR, municipio_uf VARCHAR)")
+    municipios = pd.DataFrame(geo.carregar_municipios(cfg.data_dir / "geo"),
+                              columns=["codigo6", "municipio_nome", "municipio_uf"])
+    if len(municipios):
+        con.register("df_municipios", municipios)
+        con.execute("INSERT INTO municipios SELECT codigo6, municipio_nome, municipio_uf FROM df_municipios")
+        con.unregister("df_municipios")
+    con.execute("CREATE OR REPLACE TABLE cid10 (cid3 VARCHAR, cid_nome VARCHAR)")
+    cid = carregar_catalogo(Path(os.getenv("CID10_PATH", "refs/cid10.csv")))
+    if len(cid):
+        con.register("df_cid10", cid)
+        con.execute("INSERT INTO cid10 SELECT cid3, cid_nome FROM df_cid10")
+        con.unregister("df_cid10")
+    log.info("Tabelas auxiliares: %d municípios, %d nomes de CID-10", len(municipios), len(cid))
+
+
+def executar_fontes(cfg: Config) -> None:
+    """Processa cada refs/fontes/<nome>.json (FONTES_DIR). Falha em uma fonte vira aviso, nunca derruba o ETL."""
+    from src import fontes  # import tardio: fontes usa funções deste módulo
+    pasta = Path(os.getenv("FONTES_DIR", "refs/fontes"))
+    configs = fontes.descobrir_configs(pasta)
+    for caminho in configs:
+        try:
+            log.info(fontes.processar_fonte(caminho, cfg.data_dir).resumo())
+        except Exception as exc:
+            log.warning("Fonte %s ignorada: %s", caminho.name, exc)
+    # Parquet de uma fonte cujo JSON foi removido não deve continuar aparecendo no dashboard.
+    ativos = {c.stem for c in configs}
+    for antigo in (cfg.data_dir / "processed" / "fontes").glob("*.parquet"):
+        if antigo.stem not in ativos:
+            antigo.unlink()
+            log.info("Fonte removida: %s", antigo.stem)
+
+
+def executar_geo(cfg: Config, forcar: bool = False) -> None:
+    """Baixa nomes de municípios (todas as UFs) e a malha das UFs do ETL. Falhas viram aviso."""
+    pasta = cfg.data_dir / "geo"
+    log.info("Municípios IBGE: %s", geo.garantir_municipios(pasta, forcar))
+    for uf in cfg.ufs:
+        log.info("Malha %s: %s", uf, geo.garantir_malha(pasta, uf, forcar))
 
 
 # ------------------------------------------------------------------ inspect
@@ -396,6 +458,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.inspect:
         inspecionar(cfg)
         return 0
+    if args.inspect_fonte:
+        from src import fontes
+        fontes.inspecionar(Path(args.inspect_fonte), cfg.data_dir)
+        return 0
 
     hoje = date.today()
     ok = falhas = 0
@@ -413,6 +479,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     log.info("Competências ok/puladas=%d falhas=%d", ok, falhas)
     if ok == 0:
         return 1
+    if not args.skip_geo:
+        executar_geo(cfg, forcar=args.refresh_geo)
+    if not args.skip_fontes:
+        executar_fontes(cfg)
     if not args.skip_load:
         carregar_duckdb(cfg)
     return 0 if falhas == 0 else 2

@@ -1,13 +1,17 @@
 import type {
+  BuscaCidResp,
   CidResolvido,
   DemografiaResp,
   Filtros,
+  GeoJson,
   GrupoDinamico,
   KpisResp,
+  MapaResp,
   Meta,
+  MunicipiosResp,
+  OrdemMunicipios,
   SerieResp,
   TopCidResp,
-  TopMunicipiosResp,
 } from "./types";
 
 const BASE: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -99,19 +103,6 @@ export const buscarDemografia = (f: Filtros) =>
 export const buscarTopCid = (f: Filtros, limite = 10) =>
   get<TopCidResp>("/top-cid", paraQuery(f, { limite: String(limite) }));
 
-export const buscarTopMunicipios = (
-  f: Filtros,
-  opts?: { limite?: number; busca?: string; favoritos?: string[] },
-) => {
-  const extra: Record<string, string | string[] | undefined> = {};
-  if (opts?.limite !== undefined) extra.limite = String(opts.limite);
-  if (opts?.busca) extra.busca = opts.busca;
-  if (opts?.favoritos && opts.favoritos.length > 0) {
-    extra.favoritos = opts.favoritos;
-  }
-  return get<TopMunicipiosResp>("/top-municipios", paraQuery(f, extra));
-};
-
 export const buscarGruposDinamicos = (f: Filtros) =>
   get<GrupoDinamico[]>("/cid/grupos", paraQuery(f));
 
@@ -120,5 +111,36 @@ export const resolverCid = (codigo: string) =>
 
 export const urlExportarCsv = (f: Filtros): string => {
   const query = paraQuery(f);
-  return `${BASE}/export/csv${query ? `?${query}` : ""}`;
+  return `${BASE}/export.csv${query ? `?${query}` : ""}`;
 };
+
+/** Alias usado pelo botão de exportação com contador de registros. */
+export const urlExport = urlExportarCsv;
+
+export const buscarMapa = (f: Filtros) =>
+  get<MapaResp>("/municipios/mapa", paraQuery(f));
+
+export const buscarMunicipios = (
+  f: Filtros,
+  ordenar: OrdemMunicipios,
+  ordem: "asc" | "desc",
+  pagina: number,
+  busca: string,
+  porPagina = 15,
+) =>
+  get<MunicipiosResp>(
+    "/municipios",
+    paraQuery(f, {
+      ordenar_por: ordenar,
+      ordem,
+      pagina: String(pagina),
+      por_pagina: String(porPagina),
+      ...(busca ? { busca } : {}),
+    }),
+  );
+
+export const buscarGeo = (uf: string) =>
+  get<GeoJson>("/geojson", new URLSearchParams({ uf }).toString());
+
+export const buscarCid = (f: Filtros, q: string) =>
+  get<BuscaCidResp>("/cid/buscar", paraQuery(f, { q, limite: "15" }));

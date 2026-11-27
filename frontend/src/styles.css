@@ -1030,3 +1030,136 @@ button:disabled {
   color: #ffffff;
   border-color: var(--azul);
 }
+
+/* ---- mapa, tabela de municípios, busca de CID (feature/backend) ---- */
+.mapa svg {
+  width: 100%;
+  max-height: 520px;
+  display: block;
+}
+.muni {
+  stroke: var(--superficie);
+  stroke-width: 0.004;
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+.muni:hover {
+  opacity: 0.75;
+}
+.muni.foco {
+  stroke: var(--texto);
+  stroke-width: 0.018;
+}
+.muni.ativo {
+  stroke: var(--azul);
+  stroke-width: 0.022;
+}
+.mapa-legenda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--suave);
+  margin-top: 8px;
+}
+.degrade {
+  flex: 0 0 160px;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(to right, hsl(205 80% 92%), hsl(205 80% 30%));
+}
+.mapa-dica {
+  min-height: 2.6em;
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+.tabela-wrap {
+  overflow-x: auto;
+}
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.tabela th,
+.tabela td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--borda);
+  text-align: left;
+}
+.tabela .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tabela th button {
+  all: unset;
+  cursor: pointer;
+  font-weight: 600;
+}
+.tabela tr.foco td {
+  background: color-mix(in srgb, var(--laranja) 10%, transparent);
+}
+.tabela tr.ativo td {
+  background: color-mix(in srgb, var(--azul) 14%, transparent);
+}
+.tabela button.link {
+  all: unset;
+  cursor: pointer;
+  color: var(--azul);
+}
+.tabela button.link:hover {
+  text-decoration: underline;
+}
+.selo {
+  margin-left: 6px;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--laranja);
+  color: #fff;
+}
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+.busca-cid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.busca-cid ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+}
+.busca-cid li button {
+  all: unset;
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.busca-cid li button:hover {
+  background: var(--bg);
+}
+.atalho-foco {
+  all: unset;
+  cursor: pointer;
+  color: var(--azul);
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+.atalho-foco:hover {
+  text-decoration: underline;
+}
+.dica-nome{display:block;color:var(--suave);font-size:.8rem}

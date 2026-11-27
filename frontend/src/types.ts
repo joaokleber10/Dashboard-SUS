@@ -7,6 +7,7 @@ export interface Capitulo extends Opcao {
   inicio: string;
   fim: string;
   destaque: boolean;
+  padrao: boolean;
 }
 
 export interface GrupoPrioritario {
@@ -63,6 +64,13 @@ export interface Meta {
   complexidades: Opcao[];
   ufs: Uf[];
   ufs_disponiveis: string[];
+  export_max_linhas: number;
+  foco: {
+    uf: string | null;
+    municipio_codigo: string;
+    municipio_nome: string | null;
+  } | null;
+  fontes_disponiveis: { id: string; casos: number }[];
   periodo: {
     data_min: string | null;
     data_max: string | null;
@@ -78,7 +86,9 @@ export interface Filtros {
   grupo_ids: string[];
   cid_codigos: string[];
   uf: string; // "" = todas
-  municipio: string; // "" = todos
+  municipio: string; // código IBGE de 6 dígitos, "" = todos
+  municipio_ref: "residencia" | "atendimento";
+  fontes: string[]; // [] = todas
   data_inicio: string; // AAAA-MM-DD ou ""
   data_fim: string;
   faixas_etarias: string[];
@@ -144,6 +154,7 @@ export interface ItemCid {
   cid3: string;
   capitulo_id: string | null;
   capitulo_nome: string;
+  cid_nome?: string | null;
   grupo_nome?: string | null;
   casos: number;
   obitos: number;
@@ -155,17 +166,47 @@ export interface TopCidResp {
   itens: ItemCid[];
 }
 
-export interface MunicipioItem {
-  codigo: string;
+export interface ItemMunicipio {
+  codigo: string | null;
   nome: string;
+  identificado: boolean;
   casos: number;
   obitos: number;
-  taxa_mortalidade: number;
-  custo_total: number;
-  favorito: boolean;
+  taxa_mortalidade: number | null;
+  permanencia_media: number | null;
+  custo_total: number | null;
+  percentual?: number | null;
 }
-
-export interface TopMunicipiosResp {
+export interface MunicipiosResp {
   total_municipios: number;
-  itens: MunicipioItem[];
+  total_casos: number;
+  pagina: number;
+  por_pagina: number;
+  itens: ItemMunicipio[];
 }
+export interface MapaResp {
+  itens: ItemMunicipio[];
+}
+export interface BuscaCidResp {
+  itens: {
+    cid3: string;
+    capitulo_id: string | null;
+    casos: number;
+    cid_nome: string | null;
+  }[];
+}
+export interface GeoJson {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    properties: { codigo: string };
+    geometry: { type: string; coordinates: any };
+  }[];
+}
+export type OrdemMunicipios =
+  | "casos"
+  | "obitos"
+  | "taxa_mortalidade"
+  | "permanencia_media"
+  | "custo_total"
+  | "nome";

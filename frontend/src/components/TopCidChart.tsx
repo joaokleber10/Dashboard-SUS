@@ -27,6 +27,7 @@ function DicaCid({
   return (
     <div className="dica">
       <strong>{i.cid3}</strong>
+      {i.cid_nome && <span className="dica-nome">{i.cid_nome}</span>}
       {i.grupo_nome && <span className="dica-grupo">{i.grupo_nome}</span>}
       <span>{i.capitulo_nome}</span>
       <br />

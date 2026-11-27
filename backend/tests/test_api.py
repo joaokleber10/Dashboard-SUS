@@ -23,8 +23,11 @@ def client(tmp_path, monkeypatch):
     con.execute("""CREATE TABLE internacoes (uf VARCHAR, data_internacao TIMESTAMP, ano_mes VARCHAR,
         competencia VARCHAR, capitulo_id VARCHAR, grupo_id VARCHAR, cid3 VARCHAR, faixa_etaria VARCHAR,
         sexo VARCHAR, carater VARCHAR, complexidade VARCHAR, municipio_res VARCHAR, obito BOOLEAN,
-        dias_perm DOUBLE, val_tot DOUBLE)""")
-    con.execute(f"INSERT INTO internacoes VALUES {LINHAS}")
+        dias_perm DOUBLE, val_tot DOUBLE, n_aih VARCHAR, diag_princ VARCHAR, data_saida TIMESTAMP,
+        idade_anos DOUBLE, especialidade VARCHAR)""")
+    con.execute("""INSERT INTO internacoes (uf, data_internacao, ano_mes, competencia, capitulo_id, grupo_id, cid3,
+        faixa_etaria, sexo, carater, complexidade, municipio_res, obito, dias_perm, val_tot)
+        VALUES """ + LINHAS)
     con.close()
     monkeypatch.setenv("DUCKDB_PATH", str(caminho))
     dbmod.fechar()
@@ -118,6 +121,41 @@ def test_top_cid(client):
     assert client.get("/top-cid", params={"uf": "SP"}).json()["itens"] == []
 
 
+def test_export_csv(client):
+    r = client.get("/export.csv")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
+    assert 'attachment; filename="internacoes.csv"' in r.headers["content-disposition"]
+    assert r.headers["x-total-registros"] == "6" and r.headers["x-registros-exportados"] == "6"
+    linhas = r.content.decode("utf-8-sig").strip().splitlines()
+    assert linhas[0].startswith("data_internacao,data_saida,uf,municipio_res") and len(linhas) == 7
+    assert "2023-01-10,,PB,250750" in linhas[1]                       # data sem hora, data_saida vazia
+
+
+def test_export_csv_filtros_e_separador(client):
+    r = client.get("/export.csv", params={"capitulo_ids": ["X"], "separador": ";", "uf": "PB"})
+    linhas = r.content.decode("utf-8-sig").strip().splitlines()
+    assert len(linhas) == 4 and linhas[0].split(";")[2] == "uf"
+    assert 'filename="internacoes_PB.csv"' in r.headers["content-disposition"]
+    vazio = client.get("/export.csv", params={"uf": "SP"})
+    assert len(vazio.content.decode("utf-8-sig").strip().splitlines()) == 1     # só o cabeçalho
+
+
+def test_export_csv_validacao_e_limite(client, monkeypatch):
+    assert client.get("/export.csv", params={"uf": "XX"}).status_code == 422
+    assert client.get("/export.csv", params={"separador": "|"}).status_code == 422
+    monkeypatch.setenv("EXPORT_MAX_ROWS", "2")
+    r = client.get("/export.csv")
+    assert len(r.content.decode("utf-8-sig").strip().splitlines()) == 3
+    assert r.headers["x-total-registros"] == "6" and r.headers["x-registros-exportados"] == "2"
+
+
+def test_meta_informa_limite_e_capitulos_padrao(client, monkeypatch):
+    monkeypatch.setenv("EXPORT_MAX_ROWS", "1234")
+    m = client.get("/meta/filtros").json()
+    assert m["export_max_linhas"] == 1234
+    assert [c["id"] for c in m["capitulos"] if c["padrao"]] == ["IX", "X"]
+
+
 def test_meta_fonte_e_kpis_municipios_atendidos(client):
     m = client.get("/meta/filtros").json()
     assert m["periodo"]["fonte"] == "SIH/SUS (RD — DATASUS)"
@@ -127,31 +165,6 @@ def test_meta_fonte_e_kpis_municipios_atendidos(client):
     # filtro por bloco CID-10 oficial
     blk = client.get("/kpis", params={"grupo_ids": ["I20-I25"]}).json()["atual"]
     assert blk["total"] == 1
-
-
-def test_top_municipios_busca_e_favoritos(client):
-    r = client.get("/top-municipios", params={"limite": 10}).json()
-    assert r["total_municipios"] == 2
-    codigos = [i["codigo"] for i in r["itens"]]
-    assert set(codigos) == {"250750", "250910"}
-    jp = next(i for i in r["itens"] if i["codigo"] == "250750")
-    assert jp["nome"] == "João Pessoa - PB" and jp["casos"] == 3 and jp["obitos"] == 1
-
-    # ignora filtro de municipio para manter a lista navegável
-    r_mun = client.get("/top-municipios", params={"municipio": "250750"}).json()
-    assert r_mun["total_municipios"] == 2
-
-    # favoritos (incluindo um sem casos no recorte) aparecem no topo
-    r_fav = client.get("/top-municipios", params={"favoritos": ["250400", "250910"]}).json()
-    assert [i["codigo"] for i in r_fav["itens"][:2]] == ["250910", "250400"]
-    assert r_fav["itens"][0]["favorito"] is True
-    assert r_fav["itens"][1]["casos"] == 0 and r_fav["itens"][1]["nome"] == "Campina Grande - PB"
-
-    # busca sem acento e por código
-    r_busca = client.get("/top-municipios", params={"busca": "joao pessoa"}).json()
-    assert len(r_busca["itens"]) == 1 and r_busca["itens"][0]["codigo"] == "250750"
-    r_cod = client.get("/top-municipios", params={"busca": "250910"}).json()
-    assert len(r_cod["itens"]) == 1 and r_cod["itens"][0]["codigo"] == "250910"
 
 
 def test_cid_grupos_e_resolver(client):
@@ -168,13 +181,3 @@ def test_cid_grupos_e_resolver(client):
 
     res_bad = client.get("/cid/resolver", params={"codigo": "invalido"}).json()
     assert res_bad == {"valido": False, "cid3": None, "capitulo": None, "bloco": None, "grupo_prioritario": None}
-
-
-def test_export_csv(client):
-    resp = client.get("/export/csv", params={"capitulo_ids": ["IX"]})
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("text/csv")
-    assert 'filename="internacoes_sus.csv"' in resp.headers["content-disposition"]
-    linhas = resp.text.strip().splitlines()
-    assert linhas[0].startswith("n_aih,uf,ano_mes,data_internacao,data_saida,cid3")
-    assert len(linhas) == 4  # cabeçalho + 3 linhas do capítulo IX

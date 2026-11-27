@@ -1,0 +1,2 @@
+Coloque aqui os arquivos de dados locais (por exemplo, patos.csv). Esta pasta fica fora do Git e da imagem Docker.
+Veja ../refs/fontes/LEIA-ME.txt.
