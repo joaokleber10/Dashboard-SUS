@@ -8,7 +8,8 @@ from typing import Annotated, Literal, Optional
 import duckdb
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import ValidationError
 
 try:  # .env local (no Docker as variáveis vêm do env_file)
@@ -19,7 +20,8 @@ except ImportError:
 
 from src import queries
 from src.db import abrir_cursor, caminho_banco, get_db
-from src.dictionary import meta_filtros
+from src.dictionary import meta_filtros, uf_valida
+from src.geo import ler_malha
 from src.export import gerar_csv, limite_export, nome_arquivo
 from src.schemas import Filtros
 
@@ -27,6 +29,7 @@ app = FastAPI(title="Dashboard Epidemiológico SUS", version="0.1.0")
 
 _origens = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=_origens, allow_methods=["GET"], allow_headers=["*"])
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 @app.exception_handler(duckdb.CatalogException)
@@ -46,13 +49,16 @@ def filtros_dep(
     sexos: Annotated[list[str], Query()] = [],
     carater: Annotated[list[str], Query()] = [],
     complexidade: Annotated[list[str], Query()] = [],
+    fontes: Annotated[list[str], Query()] = [],
+    municipio_ref: Literal["residencia", "atendimento"] = "residencia",
     comparacao: Literal["periodo_anterior", "ano_anterior"] = "periodo_anterior",
 ) -> Filtros:
     try:
         return Filtros(capitulo_ids=capitulo_ids, grupo_ids=grupo_ids, cid_codigos=cid_codigos, uf=uf,
                        municipio=municipio, data_inicio=data_inicio, data_fim=data_fim,
                        faixas_etarias=faixas_etarias, sexos=sexos, carater=carater,
-                       complexidade=complexidade, comparacao=comparacao)
+                       complexidade=complexidade, fontes=fontes, municipio_ref=municipio_ref,
+                       comparacao=comparacao)
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=[
             {"campo": ".".join(str(p) for p in e["loc"]) or "filtros",
@@ -80,6 +86,12 @@ def meta(db=Depends(get_db)):
     dados["periodo"] = {"data_min": _iso(dmin), "data_max": _iso(dmax),
                         "competencia_min": cmin, "competencia_max": cmax}
     dados["export_max_linhas"] = limite_export()
+    dados["foco"] = queries.foco_local(db, os.getenv("FOCO_UF", ""), os.getenv("FOCO_MUNICIPIO", ""))
+    tem_fonte = db.execute("SELECT count(*) FROM information_schema.columns WHERE table_name = 'internacoes' AND column_name = 'fonte'").fetchone()[0]
+    dados["fontes_disponiveis"] = [
+        {"id": r[0], "casos": int(r[1])}
+        for r in db.execute("SELECT fonte, count(*) FROM internacoes GROUP BY 1 ORDER BY 2 DESC").fetchall()
+    ] if tem_fonte else []
     dados["ufs_disponiveis"] = [r[0] for r in db.execute("SELECT DISTINCT uf FROM internacoes ORDER BY 1").fetchall()]
     return dados
 
@@ -119,7 +131,7 @@ def exportar_csv(separador: Literal[",", ";"] = ",", f: Filtros = Depends(filtro
     cur = abrir_cursor()
     try:
         total = queries.contar(cur, f)
-        sql, params = queries.consulta_export(f, limite)
+        sql, params = queries.consulta_export(f, limite, queries.colunas_tabela(cur))
         cur.execute(sql, params)
         colunas = [c[0] for c in cur.description]
     except Exception:
@@ -133,3 +145,51 @@ def exportar_csv(separador: Literal[",", ";"] = ",", f: Filtros = Depends(filtro
     }
     return StreamingResponse(gerar_csv(cur, colunas, separador), media_type="text/csv; charset=utf-8",
                              headers=cabecalhos)
+
+
+@app.get("/municipios")
+def get_municipios(
+    ordenar_por: Literal["casos", "obitos", "taxa_mortalidade", "permanencia_media", "custo_total", "nome"] = "casos",
+    ordem: Literal["asc", "desc"] = "desc",
+    pagina: Annotated[int, Query(ge=1)] = 1,
+    por_pagina: Annotated[int, Query(ge=1, le=200)] = 25,
+    busca: Annotated[Optional[str], Query(max_length=60)] = None,
+    f: Filtros = Depends(filtros_dep),
+    db=Depends(get_db),
+):
+    """Tabela de municípios (ordenável, paginada). O filtro de município é ignorado de propósito."""
+    return queries.municipios(db, f, ordenar_por, ordem, pagina, por_pagina, busca)
+
+
+@app.get("/municipios/mapa")
+def get_municipios_mapa(f: Filtros = Depends(filtros_dep), db=Depends(get_db)):
+    """Todos os municípios do recorte (para o mapa coroplético e para a lista do painel)."""
+    return queries.mapa_municipios(db, f)
+
+
+@app.get("/geojson")
+def get_geojson(uf: Optional[str] = None, db=Depends(get_db)):
+    """Malha municipal da UF, servida do cache local (baixada do IBGE pelo ETL)."""
+    sigla = (uf or "").strip().upper()
+    if not sigla:
+        ufs = [r[0] for r in db.execute("SELECT DISTINCT uf FROM internacoes ORDER BY 1").fetchall()]
+        if len(ufs) != 1:
+            raise HTTPException(status_code=422, detail="Informe a UF (?uf=PB).")
+        sigla = ufs[0]
+    if not uf_valida(sigla):
+        raise HTTPException(status_code=422, detail=f"UF inexistente: {sigla!r}")
+    conteudo = ler_malha(sigla)
+    if conteudo is None:
+        raise HTTPException(status_code=404, detail="Malha geográfica indisponível. Rode o ETL com acesso à internet: python -m src.etl")
+    return Response(content=conteudo, media_type="application/geo+json", headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/cid/buscar")
+def get_cid_buscar(
+    q: Annotated[str, Query(max_length=40)] = "",
+    limite: Annotated[int, Query(ge=1, le=50)] = 20,
+    f: Filtros = Depends(filtros_dep),
+    db=Depends(get_db),
+):
+    """Subcategorias CID-10 presentes nos dados que combinam com a busca (código ou nome)."""
+    return queries.buscar_cid(db, f, q, limite)
