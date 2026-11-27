@@ -1,262 +1,296 @@
 # Dashboard SUS — Monitoramento Epidemiológico
 
-<p align="center">
-  <strong>Dashboard Interativo de Dados de Saúde Pública</strong><br>
-  Análise, processamento e visualização de indicadores epidemiológicos a partir de dados públicos do SUS.
-</p>
+Dashboard interativo de saúde pública construído sobre dados abertos do **SUS (DATASUS / Ministério da Saúde)**. Parte das internações hospitalares do **SIH/SUS** e permite acompanhar agravos por capítulo da CID-10, território, período e perfil demográfico, com um município em foco (por padrão, **Patos/PB**) e suporte para anexar uma base local da cidade.
+
+O foco inicial são as **doenças do aparelho circulatório (CID-10 cap. IX)** e **respiratório (cap. X)**, mas a arquitetura é extensível a qualquer outro grupo de agravos.
 
 ---
 
-## Sobre o projeto
+## Sumário
 
-O **Dashboard SUS** é um projeto de análise e visualização de dados de saúde pública, desenvolvido com o objetivo de facilitar o monitoramento epidemiológico por meio de dados abertos oficiais do Sistema Único de Saúde (SUS).
+- [Funcionalidades](#funcionalidades)
+- [Arquitetura](#arquitetura)
+- [Início rápido](#início-rápido)
+- [Configuração](#configuração)
+- [Base local (Patos/PB)](#base-local-patospb)
+- [API](#api)
+- [Desenvolvimento sem Docker](#desenvolvimento-sem-docker)
+- [Testes](#testes)
+- [Estrutura do repositório](#estrutura-do-repositório)
+- [Fonte e limitações dos dados](#fonte-e-limitações-dos-dados)
+- [Privacidade e LGPD](#privacidade-e-lgpd)
+- [Decisões de projeto](#decisões-de-projeto)
+- [Roadmap](#roadmap)
 
-A aplicação busca transformar dados públicos em informações acessíveis e relevantes, permitindo explorar a distribuição de doenças, acompanhar tendências temporais e analisar indicadores por diferentes recortes geográficos e demográficos.
-
-O projeto possui como foco inicial as doenças dos aparelhos **circulatório e respiratório**, mantendo uma arquitetura extensível para incorporar outros grupos de doenças classificados pela CID-10.
-
-## Objetivos
-
-- Automatizar a extração e o processamento de dados epidemiológicos.
-- Organizar e padronizar informações provenientes de fontes públicas.
-- Disponibilizar indicadores de saúde por meio de visualizações interativas.
-- Permitir análises temporais, geográficas e demográficas.
-- Facilitar a exportação de dados para análises complementares.
-- Desenvolver uma estrutura modular, reutilizável e escalável.
+---
 
 ## Funcionalidades
 
-### Monitoramento epidemiológico
-
-O sistema contempla a análise de diferentes grupos de doenças:
-
-| Grupo                                          | Classificação CID-10 |
-| ---------------------------------------------- | -------------------- |
-| Doenças do aparelho circulatório               | I00–I99              |
-| Doenças do aparelho respiratório               | J00–J99              |
-| Neoplasias e tumores                           | C00–D48              |
-| Doenças endócrinas, nutricionais e metabólicas | E00–E90              |
-| Doenças infecciosas e parasitárias             | A00–B99              |
-| Causas externas de morbidade e mortalidade     | V01–Y98              |
-
-### Filtros de análise
-
-- Unidade Federativa (UF).
-- Município, utilizando código IBGE.
-- Período de referência.
-- Grupo de doenças e subcategorias CID-10.
-- Faixa etária.
-- Sexo.
-- Caráter de atendimento, quando disponível.
-
-### Indicadores e visualizações
-
-O dashboard foi especificado para disponibilizar:
-
-- **Indicadores gerais:** total de registros, mortalidade, permanência hospitalar e variação percentual.
-- **Série temporal:** evolução mensal dos registros.
-- **Distribuição demográfica:** análise por faixa etária e sexo.
-- **Ranking CID-10:** identificação dos agravos mais frequentes.
-- **Distribuição geográfica:** comparação entre municípios.
-- **Exportação:** download dos dados filtrados em CSV.
-
-## Arquitetura do projeto
-
-O projeto adota uma organização modular, buscando separar as responsabilidades de processamento, persistência, consultas e visualização.
-
-```text
-Dashboard-SUS/
-│
-├── data/
-│   └── # Dados processados e arquivos auxiliares
-│
-├── frontend/
-│   └── src/
-│       ├── app.py
-│       ├── database.py
-│       ├── dictionary.py
-│       ├── etl.py
-│       ├── queries.py
-│       ├── schemas.py
-│       └── tests/
-│
-├── .env.example
-├── .gitignore
-├── requirements.txt
-├── Dockerfile.backend
-├── Dockerfile.frontend
-└── README.md
-```
-
-_Observação: a estrutura acima representa a organização lógica dos principais componentes. Os nomes dos arquivos de teste e dos Dockerfiles devem refletir os nomes efetivamente utilizados no repositório._
-
-### Responsabilidades dos módulos
-
-| Módulo               | Responsabilidade                                                       |
-| -------------------- | ---------------------------------------------------------------------- |
-| `app.py`             | Inicialização e integração dos componentes da aplicação.               |
-| `database.py`        | Gerenciamento da conexão e operações relacionadas ao banco de dados.   |
-| `dictionary.py`      | Dicionários de classificação, códigos CID-10 e informações auxiliares. |
-| `etl.py`             | Extração, transformação e carregamento dos dados epidemiológicos.      |
-| `queries.py`         | Consultas e recuperação de informações para análise.                   |
-| `schemas.py`         | Definição e validação das estruturas de dados.                         |
-| `test_etl.py`        | Testes automatizados do pipeline ETL.                                  |
-| `test_dictionary.py` | Testes das classificações e dicionários.                               |
-
-## Tecnologias
-
-O projeto utiliza Python como base para processamento e organização dos dados.
-
-| Tecnologia   | Aplicação                                              |
-| ------------ | ------------------------------------------------------ |
-| Python       | Desenvolvimento da aplicação e processamento de dados. |
-| Docker       | Containerização e padronização do ambiente.            |
-| SQL          | Persistência e consulta de informações.                |
-| Pytest       | Testes automatizados.                                  |
-| Git / GitHub | Versionamento e gerenciamento do código.               |
-
-_As bibliotecas específicas de banco de dados, visualização e processamento devem ser atualizadas conforme as dependências efetivamente utilizadas no projeto._
-
-## Fontes de dados
-
-O projeto tem como referência os dados abertos oficiais disponibilizados pelo Ministério da Saúde.
-
-Entre as fontes consideradas na especificação estão:
-
-- **DATASUS — SIH/SUS:** Sistema de Informações Hospitalares.
-- **DATASUS — SIM:** Sistema de Informações sobre Mortalidade.
-- **DEMAS:** API de Dados Abertos do Ministério da Saúde.
-- **OpenDataSUS:** Portal de dados abertos da saúde.
-
-Documentação e acesso:
-
-- [DATASUS](https://datasus.saude.gov.br/)
-- [OpenDataSUS](https://opendatasus.saude.gov.br/)
-- [API de Dados Abertos do Ministério da Saúde](https://apidadosabertos.saude.gov.br/v1/)
-
-**Fonte efetivamente utilizada:** preencher após confirmar qual conjunto de dados ou API alimenta a implementação atual.
-
-## Configuração e execução
-
-### Pré-requisitos
-
-- Python 3.10 ou superior.
-- Docker e Docker Compose, caso utilizados para execução containerizada.
-- Git.
-
-### 1. Clonar o repositório
-
-```bash
-git clone <URL_DO_REPOSITORIO>
-cd <NOME_DO_REPOSITORIO>
-```
-
-### 2. Configurar as variáveis de ambiente
-
-Crie seu arquivo `.env` a partir do modelo disponibilizado:
-
-```bash
-cp .env.example .env
-```
-
-Configure os parâmetros necessários conforme o ambiente de execução.
-
-**Importante:** não compartilhe o arquivo `.env` nem credenciais de acesso no repositório.
-
-### 3. Instalar as dependências
-
-```bash
-python -m venv .venv
-```
-
-Ative o ambiente virtual:
-
-Windows:
-
-```bash
-.venv\Scripts\activate
-```
-
-Linux/macOS:
-
-```bash
-source .venv/bin/activate
-```
-
-Instale as dependências:
-
-```bash
-pip install -r requirements.txt
-```
-
-### Execução com Docker
-
-O projeto contempla configurações de containerização para os componentes de backend e frontend.
-
-Os comandos definitivos de build e inicialização devem acompanhar os nomes dos Dockerfiles e os respectivos contextos de construção presentes no repositório.
-
-## Testes
-
-O projeto utiliza Pytest para execução dos testes automatizados.
-
-Para executar a suíte de testes:
-
-```bash
-pytest
-```
-
-Para executar um módulo específico:
-
-```bash
-pytest frontend/src/test_etl.py
-```
-
-Os testes têm como finalidade verificar o comportamento dos componentes, a consistência das transformações e o tratamento de situações inesperadas.
-
-## Tratamento e qualidade dos dados
-
-O processamento dos dados deve considerar situações como:
-
-- Códigos CID-10 inválidos ou não identificados.
-- Municípios sem correspondência.
-- Datas ausentes ou inválidas.
-- Campos demográficos incompletos.
-- Duplicidades e inconsistências nos registros.
-- Diferenças de estrutura entre fontes de dados.
-
-A utilização de mecanismos de armazenamento intermediário e cache também busca evitar a necessidade de realizar novas extrações de dados brutos a cada interação do usuário.
-
-## Versionamento
-
-O projeto utiliza Git para controle de versão, adotando o padrão **Conventional Commits** para organização do histórico de desenvolvimento.
-
-Exemplos:
-
-```text
-feat: implement ETL pipeline
-fix: handle invalid epidemiological records
-test: add automated ETL tests
-refactor: improve database operations
-docs: update project documentation
-build: configure Docker environment
-```
-
-## Considerações sobre os dados
-
-Os dados disponibilizados pelo SUS estão sujeitos a limitações relacionadas à atualização das bases, preenchimento dos registros, disponibilidade de informações e critérios de classificação.
-
-Portanto, os indicadores apresentados devem ser interpretados considerando as características e limitações da fonte utilizada.
-
-Os resultados representam informações provenientes das bases públicas consultadas e não substituem análises epidemiológicas oficiais.
-
-## Status do projeto
-
-**Em desenvolvimento.**
-
-O projeto está sendo desenvolvido de forma modular, com foco na construção de um pipeline de dados confiável e em uma interface de monitoramento epidemiológico interativa.
+**Filtros combináveis**
+
+- Grupo de doenças (capítulos da CID-10) e busca por subcategoria, por código ou nome (ex.: `I21`, "pneumonia").
+- UF, município (código IBGE) e período por data de internação.
+- Faixa etária, sexo, caráter do atendimento e complexidade.
+- Fonte dos dados (SIH/SUS ou bases locais) e referência do município: **residência do paciente** ou **local do atendimento**.
+
+**Indicadores e visualizações**
+
+- **Indicadores principais** com variação em relação ao período anterior (mês a mês) ou ao mesmo período do ano anterior: internações, mortalidade hospitalar, permanência média e custo.
+- **Série temporal** mensal por capítulo.
+- **Pirâmide etária** por sexo.
+- **Top 10 agravos** (CID-10, 3 caracteres), com o nome da doença.
+- **Mapa coroplético** dos municípios da UF, clicável, com troca de métrica (internações, óbitos, letalidade) e município em foco destacado.
+- **Tabela de municípios** ordenável, com busca e paginação.
+- **Exportação em CSV** dos dados filtrados.
+
+**Robustez**
+
+- ETL idempotente: meses já processados são reaproveitados do cache.
+- Linhas inválidas são separadas em `rejeitados`, nunca derrubam a carga.
+- A falha de uma fonte local não impede o carregamento do SIH.
+- Filtros validados na API; a API responde `503` com orientação clara se o banco ainda não existe.
+- Consultas SQL parametrizadas.
 
 ---
 
-<p align="center">
-  Desenvolvido como projeto de estudo e aplicação de engenharia de dados, processamento de informações e visualização de dados em saúde pública.
-</p>
+## Arquitetura
+
+```mermaid
+flowchart LR
+    A[PySUS<br/>SIH/SUS · arquivos RD] --> C
+    B[Bases locais<br/>CSV / Excel + mapeamento JSON] --> C
+    I[IBGE<br/>municípios e malha] --> C
+    C[ETL<br/>backend/src/etl.py] --> D[(Parquet limpo<br/>particionado por UF/ano)]
+    D --> E[(DuckDB<br/>tabela internacoes)]
+    E --> F[API FastAPI<br/>somente leitura]
+    F --> G[Frontend React<br/>Nginx]
+```
+
+| Camada        | Tecnologia                           | Papel                                                       |
+| ------------- | ------------------------------------ | ----------------------------------------------------------- |
+| Coleta        | PySUS 2.12.2                         | Baixa os arquivos do SIH (RD)                               |
+| Tratamento    | pandas / ETL próprio                 | Limpeza, validação de CID, datas, idade, sexo, município    |
+| Armazenamento | Parquet + DuckDB                     | Cache local e consultas analíticas rápidas                  |
+| API           | FastAPI + Pydantic                   | Endpoints de agregação, filtros validados, CSV em streaming |
+| Interface     | React + Vite + TypeScript + Recharts | Painel interativo; mapa em SVG, sem serviço externo         |
+| Execução      | Docker Compose + Nginx               | Três serviços: `etl` → `backend` → `frontend`               |
+
+O DuckDB aceita um único escritor: o **ETL grava**, a **API só lê** (`read_only`).
+
+---
+
+## Início rápido
+
+Requisitos: **Docker** e **Docker Compose** em execução.
+
+```bash
+git clone <https://github.com/joaokleber10/Dashboard-SUS.git>
+cd Dashboard-SUS
+cp .env.example .env
+docker compose up --build
+```
+
+Quando terminar:
+
+| Serviço                        | Endereço                   |
+| ------------------------------ | -------------------------- |
+| Dashboard                      | http://localhost:5173      |
+| API                            | http://localhost:8000      |
+| Documentação interativa da API | http://localhost:8000/docs |
+
+Na primeira execução o ETL baixa os dados do SIH e a malha do IBGE, o que exige internet e pode levar alguns minutos. Nas seguintes, os meses já processados são pulados. No Windows, use `copy .env.example .env` no lugar de `cp`.
+
+---
+
+## Configuração
+
+Todas as variáveis ficam no arquivo `.env` (modelo em `.env.example`).
+
+| Variável                          | Padrão                  | Descrição                                                     |
+| --------------------------------- | ----------------------- | ------------------------------------------------------------- |
+| `ETL_UF`                          | `PB`                    | UF (ou lista separada por vírgula) a carregar                 |
+| `ETL_YEAR_START` / `ETL_YEAR_END` | `2023` / `2024`         | Intervalo de anos                                             |
+| `ETL_SOURCE`                      | `SIH`                   | Fonte oficial (hoje apenas SIH)                               |
+| `FOCO_UF` / `FOCO_MUNICIPIO`      | `PB` / `Patos`          | Município em foco: nome ou código IBGE. Vazio desativa o foco |
+| `FONTES_DIR`                      | `refs/fontes`           | Pasta com os JSON de bases locais                             |
+| `CID10_PATH`                      | `refs/cid10.csv`        | CSV opcional com o nome exato de cada categoria da CID-10     |
+| `DATA_DIR` / `DUCKDB_PATH`        | `/app/data`             | Onde ficam o cache e o banco                                  |
+| `PYSUS_CACHEPATH`                 | `/app/data/pysus_cache` | Cache de downloads do PySUS                                   |
+| `BACKEND_PORT` / `FRONTEND_PORT`  | `8000` / `5173`         | Portas publicadas                                             |
+| `CORS_ORIGINS`                    | `http://localhost:5173` | Origens aceitas pela API (separadas por vírgula)              |
+| `VITE_API_URL`                    | `http://localhost:8000` | URL da API **vista pelo navegador**; é embutida no build      |
+| `EXPORT_MAX_ROWS`                 | `500000`                | Limite de linhas do CSV exportado                             |
+| `PYTHON_VERSION` / `NODE_VERSION` | `3.12` / `20`           | Versões das imagens                                           |
+
+> Alterou `VITE_API_URL`? Rode `docker compose up --build` para refazer o frontend.
+
+**Nomes de CID-10.** Por padrão, cada código mostra o nome do **bloco** a que pertence (`backend/src/cid10_blocos.py`), por exemplo _I21 · Doenças isquêmicas do coração (bloco I20-I25)_. Para o nome exato de cada categoria, coloque um CSV com as colunas `CAT` e `DESCRICAO` em `backend/refs/cid10.csv`; as categorias presentes nele passam na frente.
+
+---
+
+## Base local (Patos/PB)
+
+O sistema aceita bases locais em **CSV ou Excel** que se somam ao SIH. Cada base é descrita por um arquivo JSON que diz qual coluna do seu arquivo corresponde a cada campo do dashboard, sem alterar código.
+
+1. Coloque o arquivo em `backend/dados-locais/` (sem nome, CPF, CNS, endereço ou telefone).
+2. Copie `backend/refs/fontes/patos.exemplo.json` para `patos.json` e ajuste os nomes das colunas.
+3. Confira o mapeamento sem gravar nada:
+   ```bash
+   python -m src.etl --inspect-fonte refs/fontes/patos.json
+   ```
+4. Rode o ETL de novo (`docker compose up --build`). A nova fonte aparece no filtro **Fonte dos dados**.
+
+Campos mapeáveis: data de internação (obrigatório), CID (obrigatório), data de saída, data de nascimento, idade, sexo, município de residência e de atendimento, dias de permanência, valor, óbito, caráter, complexidade e especialidade. Valores de texto (por exemplo "ÓBITO", "Masculino") são traduzidos por tabelas no próprio JSON. Detalhes em `backend/refs/fontes/LEIA-ME.txt`.
+
+> **Atenção à dupla contagem.** Se os hospitais da base local já faturam no SIH, as mesmas internações aparecem nas duas fontes. Use o filtro de fonte para analisá-las separadamente.
+
+---
+
+## API
+
+Documentação interativa em `/docs`. Todos os endpoints de dados aceitam os mesmos filtros.
+
+| Endpoint               | Descrição                                                          |
+| ---------------------- | ------------------------------------------------------------------ |
+| `GET /health`          | Estado do serviço e do banco                                       |
+| `GET /meta/filtros`    | Opções dos filtros, período disponível, município em foco e fontes |
+| `GET /kpis`            | Indicadores com variação                                           |
+| `GET /serie-temporal`  | Evolução mensal (por capítulo ou total)                            |
+| `GET /demografia`      | Distribuição por faixa etária e sexo                               |
+| `GET /top-cid`         | Agravos mais frequentes                                            |
+| `GET /cid/buscar`      | Busca de subcategorias por código ou nome                          |
+| `GET /municipios`      | Tabela de municípios (ordenação, busca, paginação)                 |
+| `GET /municipios/mapa` | Todos os municípios do recorte, para o mapa                        |
+| `GET /geojson`         | Malha municipal da UF                                              |
+| `GET /export.csv`      | Dados filtrados em CSV (streaming, limitado por `EXPORT_MAX_ROWS`) |
+
+**Parâmetros de filtro:** `capitulo_ids`, `grupo_ids`, `cid_codigos`, `uf`, `municipio`, `data_inicio`, `data_fim`, `faixas_etarias`, `sexos`, `carater`, `complexidade`, `fontes`, `municipio_ref` (`residencia` ou `atendimento`) e `comparacao` (`periodo_anterior` ou `ano_anterior`).
+
+```bash
+curl "http://localhost:8000/kpis?capitulo_ids=IX&capitulo_ids=X&uf=PB&data_inicio=2023-01-01&data_fim=2023-12-31"
+```
+
+---
+
+## Desenvolvimento sem Docker
+
+Requisitos: Python 3.10+ e Node 20+.
+
+```bash
+# Backend
+python -m venv .venv
+.venv\Scripts\activate            # Linux/macOS: source .venv/bin/activate
+cd backend
+pip install -r requirements.txt
+python -m src.etl                 # carga (ver opções abaixo)
+python -m uvicorn src.app:app --reload --port 8000
+
+# Frontend (em outro terminal)
+cd frontend
+npm install
+npm run dev                       # http://localhost:5173
+```
+
+Opções do ETL:
+
+```bash
+python -m src.etl --uf PB,PE --start 2023 --end 2024   # recorte
+python -m src.etl --force            # reprocessa mesmo o que está em cache
+python -m src.etl --inspect          # baixa 1 mês e mostra colunas/valores
+python -m src.etl --skip-fontes      # não processa bases locais
+python -m src.etl --skip-geo         # não baixa nomes/malha do IBGE
+python -m src.etl --refresh-geo      # baixa de novo nomes e malha
+```
+
+Fora do Docker, o ETL e a API leem `DATA_DIR`/`DUCKDB_PATH` relativos à pasta em que são executados.
+
+---
+
+## Testes
+
+```bash
+cd backend
+python -m pytest -q
+```
+
+A suíte cobre o dicionário de domínio, a limpeza do ETL, as consultas SQL, a exportação CSV, o catálogo de CID, o adaptador de fontes locais e a API de ponta a ponta (com um DuckDB temporário).
+
+---
+
+## Estrutura do repositório
+
+```
+Dashboard-SUS/
+├── docker-compose.yml
+├── .env.example
+├── backend/
+│   ├── Dockerfile.backend
+│   ├── requirements.txt
+│   ├── src/
+│   │   ├── app.py           # API FastAPI
+│   │   ├── etl.py           # coleta, limpeza e carga (SIH + fontes locais)
+│   │   ├── fontes.py        # adaptador de bases locais (CSV/Excel + JSON)
+│   │   ├── geo.py           # municípios e malha do IBGE, com cache
+│   │   ├── catalogos.py     # nomes de CID-10 (blocos + CSV opcional)
+│   │   ├── cid10_blocos.py  # blocos oficiais da CID-10
+│   │   ├── dictionary.py    # capítulos, grupos, UFs, faixas etárias e códigos
+│   │   ├── queries.py       # consultas e filtros SQL parametrizados
+│   │   ├── schemas.py       # validação dos filtros
+│   │   ├── export.py        # CSV em streaming
+│   │   └── db.py            # conexão DuckDB (somente leitura)
+│   ├── tests/
+│   ├── refs/                # fontes/*.json, LEIA-ME e cid10.csv opcional
+│   └── dados-locais/        # arquivos das bases locais (fora do Git)
+└── frontend/
+    ├── Dockerfile.frontend
+    └── src/                 # componentes React, tipos e cliente da API
+```
+
+---
+
+## Fonte e limitações dos dados
+
+**Fonte efetivamente utilizada:** **SIH/SUS** (Sistema de Informações Hospitalares), arquivos de AIH reduzida (RD), obtidos pelo PySUS a partir dos dados abertos do DATASUS. Opcionalmente, bases locais mapeadas por JSON.
+
+Leia os resultados com estas ressalvas:
+
+- **Apenas o SUS.** Internações da saúde suplementar e atendimentos ambulatoriais não estão incluídos; não representa toda a morbidade da população.
+- **A unidade é a internação (AIH), não o paciente.** A mesma pessoa pode aparecer mais de uma vez.
+- **Diagnóstico principal não é causa da morte.** "Óbito" significa óbito hospitalar durante a internação, não mortalidade geral por causa.
+- **Defasagem de processamento.** Os meses mais recentes costumam estar incompletos, o que pode parecer uma queda artificial.
+- **Residência × atendimento.** O mapa, por padrão, usa o município de residência do paciente. Os dois recortes respondem a perguntas diferentes (demanda da população × oferta de serviços).
+- **Dependência do espelho do PySUS.** Se a fonte estiver fora do ar, o ETL registra a falha e mantém o que já está em cache.
+- **Nomes de CID por bloco.** Sem `cid10.csv`, o nome mostrado é o do grupo, não o da doença individual.
+- **Dados do SIH são administrativos e de faturamento**, sujeitos a erros de registro (por exemplo, município ou CID ausentes). Esses casos aparecem como "não identificado" e entram nos relatórios do ETL.
+
+---
+
+## Privacidade e LGPD
+
+- O SIH disponibilizado publicamente é **anonimizado**; o dashboard não exibe identificadores de pacientes, e a exportação CSV não inclui o número da AIH.
+- O adaptador de bases locais **recusa** colunas de identificação mapeadas como `id` (nome, CPF, CNS, endereço, telefone, prontuário) e descarta da memória todas as colunas não mapeadas.
+- A pasta `backend/dados-locais/` está no `.gitignore`: **nunca versione dados de pacientes**.
+- Células com poucos casos em municípios pequenos podem permitir reidentificação; ao divulgar resultados, avalie agregar por período ou território.
+
+---
+
+## Decisões de projeto
+
+- **Vite + React em vez de Next.js:** o painel é uma aplicação de página única que consome uma API própria; não precisa de renderização no servidor.
+- **DuckDB + Parquet:** análises agregadas rápidas sobre centenas de milhares de linhas, sem servidor de banco; o cache particionado evita baixar de novo.
+- **API somente leitura:** um único escritor (o ETL) elimina conflitos de bloqueio no DuckDB.
+- **Dicionário como fonte única de verdade** (`dictionary.py`): ETL, API e frontend (via `/meta/filtros`) dependem dele; incluir um novo grupo de agravos não exige mudar as consultas.
+- **Mapa em SVG próprio:** sem dependência de serviços de mapas externos nem de chaves de API.
+- **Volume nomeado no Docker** para os dados: evita problemas de permissão e de bloqueio de arquivo em pastas sincronizadas (como OneDrive) ou montadas do Windows.
+
+---
+
+## Roadmap
+
+- [ ] Carregar a base de Patos com o mapeamento real (`refs/fontes/patos.json`).
+- [ ] Integrar o **SIM** (mortalidade por causa básica) para comparar internação e óbito.
+- [ ] Taxas por 100 mil habitantes, com população do IBGE.
+- [ ] Mais UFs e anos no recorte padrão.
+- [ ] Testes automatizados do frontend e pipeline de integração contínua.
+
+---
