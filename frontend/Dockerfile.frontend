@@ -5,10 +5,10 @@ FROM node:${NODE_VERSION}-alpine AS build
 WORKDIR /app
 # Só o package.json (sem o package-lock.json): um lockfile gerado no Windows pode não trazer os
 # binários nativos do Linux (rollup/esbuild) e quebrar o build. O npm resolve de novo dentro do Linux.
-COPY frontend/package.json ./
+COPY package.json ./
 RUN npm install
 
-COPY frontend/ ./
+COPY . ./
 ARG VITE_API_URL=http://localhost:8000
 ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
