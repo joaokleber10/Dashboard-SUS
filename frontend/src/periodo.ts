@@ -14,7 +14,13 @@ export function filtrosPadrao(meta: Meta): Filtros {
   const { competencia_min: min, competencia_max: max } = meta.periodo;
   return {
     capitulo_ids: meta.capitulos.filter((c) => c.padrao).map((c) => c.id),
-    uf: "",
+    uf:
+      meta.foco?.uf ??
+      (meta.ufs_disponiveis.length === 1 ? meta.ufs_disponiveis[0] : ""),
+    municipio: "",
+    cid_codigos: [],
+    fontes: [],
+    municipio_ref: "residencia",
     data_inicio: min ? primeiroDia(min) : "",
     data_fim: max ? ultimoDia(max) : "",
     faixas_etarias: [],
@@ -25,12 +31,22 @@ export function filtrosPadrao(meta: Meta): Filtros {
   };
 }
 
-export function ultimoMes(meta: Meta): { data_inicio: string; data_fim: string } | null {
+export function ultimoMes(
+  meta: Meta,
+): { data_inicio: string; data_fim: string } | null {
   const max = meta.periodo.competencia_max;
-  return max ? { data_inicio: primeiroDia(max), data_fim: ultimoDia(max) } : null;
+  return max
+    ? { data_inicio: primeiroDia(max), data_fim: ultimoDia(max) }
+    : null;
 }
 
-export function periodoCompleto(meta: Meta): { data_inicio: string; data_fim: string } {
+export function periodoCompleto(meta: Meta): {
+  data_inicio: string;
+  data_fim: string;
+} {
   const { competencia_min: min, competencia_max: max } = meta.periodo;
-  return { data_inicio: min ? primeiroDia(min) : "", data_fim: max ? ultimoDia(max) : "" };
+  return {
+    data_inicio: min ? primeiroDia(min) : "",
+    data_fim: max ? ultimoDia(max) : "",
+  };
 }

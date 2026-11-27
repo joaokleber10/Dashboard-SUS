@@ -9,10 +9,16 @@ import TimeSeriesChart from "./components/TimeSeriesChart";
 import AgePyramid from "./components/AgePyramid";
 import ExportButton from "./components/ExportButton";
 import TopCidChart from "./components/TopCidChart";
+import MunicipiosMapa from "./components/MunicipiosMapa";
+import MunicipiosTabela from "./components/MunicipiosTabela";
 import { ErroBanner, KpiSkeleton } from "./components/Estados";
 
 export default function App() {
-  const meta = useQuery({ queryKey: ["meta"], queryFn: buscarMeta, staleTime: Infinity });
+  const meta = useQuery({
+    queryKey: ["meta"],
+    queryFn: buscarMeta,
+    staleTime: Infinity,
+  });
   const [filtros, setFiltros] = useState<Filtros | null>(null);
 
   useEffect(() => {
@@ -30,7 +36,10 @@ export default function App() {
     <div className="app">
       <header className="topo">
         <h1>Monitoramento Epidemiológico — SUS</h1>
-        <p>Internações hospitalares (SIH/SUS) · foco inicial: doenças cardiorrespiratórias</p>
+        <p>
+          Internações hospitalares (SIH/SUS) · foco inicial: doenças
+          cardiorrespiratórias
+        </p>
       </header>
 
       {meta.isError && <ErroBanner erro={meta.error} />}
@@ -38,21 +47,44 @@ export default function App() {
 
       {meta.data && filtros && (
         <div className="layout">
-          <FilterPanel meta={meta.data} filtros={filtros} onChange={setFiltros} />
+          <FilterPanel
+            meta={meta.data}
+            filtros={filtros}
+            onChange={setFiltros}
+          />
           <main className="conteudo">
             {kpis.isError && <ErroBanner erro={kpis.error} />}
             {kpis.isPending && <KpiSkeleton />}
             {kpis.data && (
-              <ExportButton filtros={filtros} total={kpis.data.atual.total} limite={meta.data.export_max_linhas} />
+              <ExportButton
+                filtros={filtros}
+                total={kpis.data.atual.total}
+                limite={meta.data.export_max_linhas}
+              />
             )}
-            {kpis.data && (kpis.data.atual.total === 0
-              ? <p className="vazio">Nenhum dado para os filtros selecionados.</p>
-              : <KpiCards dados={kpis.data} />)}
+            {kpis.data &&
+              (kpis.data.atual.total === 0 ? (
+                <p className="vazio">
+                  Nenhum dado para os filtros selecionados.
+                </p>
+              ) : (
+                <KpiCards dados={kpis.data} />
+              ))}
             <TimeSeriesChart filtros={filtros} />
             <div className="duas-colunas">
               <AgePyramid filtros={filtros} />
               <TopCidChart filtros={filtros} />
             </div>
+            <MunicipiosMapa
+              meta={meta.data}
+              filtros={filtros}
+              onChange={setFiltros}
+            />
+            <MunicipiosTabela
+              meta={meta.data}
+              filtros={filtros}
+              onChange={setFiltros}
+            />
           </main>
         </div>
       )}
