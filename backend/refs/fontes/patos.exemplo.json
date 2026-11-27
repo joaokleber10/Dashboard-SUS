@@ -1,0 +1,26 @@
+{
+  "_ajuda": "MODELO. Copie para patos.json (sem o .exemplo) e troque os nomes das colunas pelos do SEU arquivo. Os nomes abaixo são hipotéticos. Veja refs/fontes/LEIA-ME.txt.",
+  "arquivo": "dados-locais/patos.csv",
+  "formato": "csv",
+  "csv": { "separador": ";", "codificacao": "utf-8-sig" },
+  "uf": "PB",
+  "formato_data": "%d/%m/%Y",
+  "decimal": ",",
+  "unidade_idade": "anos",
+  "colunas": {
+    "data_internacao": "DATA_INTERNACAO",
+    "data_saida": "DATA_ALTA",
+    "cid": "CID_PRINCIPAL",
+    "municipio_res": "MUNICIPIO_RESIDENCIA",
+    "municipio_mov": "HOSPITAL_MUNICIPIO",
+    "sexo": "SEXO",
+    "idade": "IDADE",
+    "carater": "CARATER",
+    "obito": "EVOLUCAO",
+    "valor": "VALOR_TOTAL"
+  },
+  "valores": {
+    "sexo": { "MASCULINO": "M", "FEMININO": "F" },
+    "obito": { "ÓBITO": "1", "ALTA": "0", "TRANSFERÊNCIA": "0" }
+  }
+}

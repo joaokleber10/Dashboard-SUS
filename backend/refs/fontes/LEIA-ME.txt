@@ -1,0 +1,32 @@
+Fontes de dados locais (CSV ou Excel)
+=====================================
+Cada arquivo <nome>.json nesta pasta descreve UMA fonte. O nome do arquivo vira o nome da fonte no dashboard
+(patos.json -> fonte "patos"). Arquivos terminados em .exemplo.json são só modelos e são ignorados.
+
+Passo a passo
+1. Coloque o arquivo de dados em backend/dados-locais/ (essa pasta NÃO vai para o Git nem para a imagem Docker).
+2. Copie patos.exemplo.json para patos.json e ajuste: caminho do arquivo, UF e, em "colunas", o nome da coluna
+   do SEU arquivo para cada campo. Só "data_internacao" e "cid" são obrigatórios; o resto é opcional.
+3. Confira o que o ETL entendeu, sem gravar nada:
+       python -m src.etl --inspect-fonte refs/fontes/patos.json
+   (no Docker: docker compose run --rm etl python -m src.etl --inspect-fonte refs/fontes/patos.json)
+4. Rode o ETL normalmente. A fonte aparece no filtro "Fonte dos dados".
+
+Campos aceitos em "colunas"
+  data_internacao*  data_saida  data_nascimento  cid*  municipio_res  municipio_mov  sexo  idade  dias_perm
+  valor  obito  carater  complexidade  especialidade  id        (* obrigatórios)
+  - Município pode ser código IBGE (6 ou 7 dígitos) ou o NOME ("Patos", "Patos - PB").
+  - Sem "idade", mas com data_nascimento: a idade é calculada na data da internação.
+  - Sem "dias_perm", mas com data_saida: são calculados como saída - internação.
+  - Sem "obito": a taxa de mortalidade aparecerá como 0% (o ETL avisa).
+  - Em "valores" você traduz textos do seu arquivo: sexo -> M/F, obito -> 1/0, carater -> eletivo/urgencia/outros,
+    complexidade -> atencao_basica/media/alta.
+
+Privacidade (LGPD)
+  Dados de saúde são dados pessoais sensíveis. Remova do arquivo nome, CPF, CNS, endereço e telefone ANTES de
+  anexá-lo, e não os mapeie. Só as colunas mapeadas são aproveitadas; o ETL recusa mapear como "id" uma coluna
+  cujo nome lembre um identificador pessoal.
+
+Atenção a dupla contagem
+  Uma fonte local pode conter internações que também estão no SIH (por exemplo, as de um hospital que atende o SUS).
+  Somar as duas fontes conta essas internações duas vezes. Compare uma fonte de cada vez no filtro "Fonte".
