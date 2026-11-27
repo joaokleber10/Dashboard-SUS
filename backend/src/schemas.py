@@ -6,13 +6,13 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.dictionary import (
-    CAPITULOS, CARATER_ATENDIMENTO, COMPLEXIDADES, FAIXAS_ETARIAS, GRUPOS, SEXOS,
+    BLOCOS_CID10, CAPITULOS, CARATER_ATENDIMENTO, COMPLEXIDADES, FAIXAS_ETARIAS, GRUPOS, SEXOS,
     municipio6, normalizar_cid, uf_valida,
 )
 
 _VALIDOS = {
     "capitulo_ids": {c["id"] for c in CAPITULOS},
-    "grupo_ids": {g["id"] for g in GRUPOS},
+    "grupo_ids": {g["id"] for g in GRUPOS} | {b["id"] for b in BLOCOS_CID10},
     "faixas_etarias": {f["id"] for f in FAIXAS_ETARIAS},
     "sexos": {s["id"] for s in SEXOS},
     "carater": {c["id"] for c in CARATER_ATENDIMENTO},
@@ -34,7 +34,7 @@ class Filtros(BaseModel):
     complexidade: list[str] = Field(default_factory=list)
     fontes: list[str] = Field(default_factory=list)
     municipio_ref: Literal["residencia", "atendimento"] = "residencia"
-    comparacao: Literal["periodo_anterior", "ano_anterior"] = "periodo_anterior"
+    comparacao: Literal["nenhuma", "periodo_anterior", "ano_anterior"] = "periodo_anterior"
 
     @field_validator("capitulo_ids", "grupo_ids", "faixas_etarias", "sexos", "carater", "complexidade")
     @classmethod

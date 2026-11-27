@@ -5,7 +5,7 @@ import unicodedata
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Optional
 
-from src.dictionary import CAPITULOS, FAIXAS_ETARIAS, municipio6
+from src.dictionary import BLOCO_POR_ID, CAPITULOS, FAIXAS_ETARIAS, cid_to_bloco, municipio6
 
 if TYPE_CHECKING:
     from src.schemas import Filtros
@@ -42,7 +42,19 @@ def build_where(f: "Filtros", incluir_cid: bool = True,
 
     if incluir_cid:
         add_in("capitulo_id", f.capitulo_ids)
-        add_in("grupo_id", f.grupo_ids)
+        if f.grupo_ids:
+            legado = [g for g in f.grupo_ids if g not in BLOCO_POR_ID]
+            blocos = [BLOCO_POR_ID[g] for g in f.grupo_ids if g in BLOCO_POR_ID]
+            partes: list[str] = []
+            g_params: list = []
+            if legado:
+                partes.append(f"grupo_id IN ({','.join(['?'] * len(legado))})")
+                g_params.extend(legado)
+            for bloco in blocos:
+                partes.append("(cid3 >= ? AND cid3 <= ?)")
+                g_params.extend([bloco["inicio"], bloco["fim"]])
+            conds.append(partes[0] if len(partes) == 1 else "(" + " OR ".join(partes) + ")")
+            params.extend(g_params)
         if incluir_cid_codigos:
             add_in("cid3", f.cid_codigos)
     if f.uf:
@@ -94,7 +106,7 @@ def periodo_anterior(f: "Filtros") -> Optional[tuple[date, date]]:
       meses imediatamente antes (julho -> junho inteiro); caso contrário, a mesma
       quantidade de dias imediatamente antes.
     """
-    if not (f.data_inicio and f.data_fim):
+    if f.comparacao == "nenhuma" or not (f.data_inicio and f.data_fim):
         return None
     if f.comparacao == "ano_anterior":
         return _menos_um_ano(f.data_inicio), _menos_um_ano(f.data_fim)
@@ -135,8 +147,9 @@ def meses_entre(inicio: str, fim: str) -> list[str]:
 
 # -------------------------------------------------------------------- KPIs
 def _agregados(db, where: str, params: list) -> dict:
-    total, obitos, perm, custo_total, custo_medio = db.execute(
-        f"""SELECT count(*), count(*) FILTER (WHERE obito), avg(dias_perm), sum(val_tot), avg(val_tot)
+    total, obitos, perm, custo_total, custo_medio, muns = db.execute(
+        f"""SELECT count(*), count(*) FILTER (WHERE obito), avg(dias_perm), sum(val_tot), avg(val_tot),
+                   count(DISTINCT municipio_res)
             FROM {TABELA}{where}""", params).fetchone()
     return {
         "total": int(total),
@@ -145,6 +158,7 @@ def _agregados(db, where: str, params: list) -> dict:
         "permanencia_media": _num(perm),
         "custo_total": _num(custo_total),
         "custo_medio": _num(custo_medio),
+        "municipios_atendidos": int(muns or 0),
     }
 
 
@@ -264,6 +278,7 @@ def top_cid(db, f: "Filtros", limite: int = 10) -> dict:
         "cid_nome": nome,
         "capitulo_id": cap,
         "capitulo_nome": _NOMES_CAPITULO.get(cap, "Sem capítulo"),
+        "grupo_nome": bloco["nome"] if (bloco := cid_to_bloco(cid3)) else None,
         "casos": int(n),
         "obitos": int(obitos),
         "percentual": _pct(n, total),
@@ -297,6 +312,24 @@ def buscar_cid(db, f: "Filtros", q: str = "", limite: int = 20) -> dict:
             ORDER BY b.casos DESC, b.cid3 LIMIT {int(limite)}""", params + extra).fetchall()
     return {"itens": [{"cid3": cid3, "capitulo_id": cap, "casos": int(casos), "cid_nome": nome}
                       for cid3, cap, casos, nome in linhas]}
+
+
+# ------------------------------------------------------- Grupos dinâmicos
+def grupos_dinamicos(db, f: "Filtros") -> list[dict]:
+    """Agrega internações por bloco oficial CID-10 ignorando filtros de grupo e CID."""
+    f_base = f.model_copy(update={"grupo_ids": [], "cid_codigos": []})
+    where, params = build_where(f_base)
+    where += (" AND " if where else " WHERE ") + "cid3 IS NOT NULL"
+    rows = db.execute(f"SELECT cid3, count(*) FROM {TABELA}{where} GROUP BY 1", params).fetchall()
+    totais: dict[str, int] = {}
+    for cid3, n in rows:
+        bloco = cid_to_bloco(cid3)
+        if bloco is None:
+            continue
+        totais[bloco["id"]] = totais.get(bloco["id"], 0) + int(n)
+    itens = [{**BLOCO_POR_ID[bid], "internacoes": total} for bid, total in totais.items()]
+    itens.sort(key=lambda x: (-x["internacoes"], x["id"]))
+    return itens
 
 
 # -------------------------------------------------------------- municípios

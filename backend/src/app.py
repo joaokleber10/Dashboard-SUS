@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Annotated, Literal, Optional
 
 import duckdb
@@ -20,7 +20,7 @@ except ImportError:
 
 from src import queries
 from src.db import abrir_cursor, caminho_banco, get_db
-from src.dictionary import meta_filtros, uf_valida
+from src.dictionary import meta_filtros, resolver_cid, uf_valida
 from src.geo import ler_malha
 from src.export import gerar_csv, limite_export, nome_arquivo
 from src.schemas import Filtros
@@ -51,7 +51,7 @@ def filtros_dep(
     complexidade: Annotated[list[str], Query()] = [],
     fontes: Annotated[list[str], Query()] = [],
     municipio_ref: Literal["residencia", "atendimento"] = "residencia",
-    comparacao: Literal["periodo_anterior", "ano_anterior"] = "periodo_anterior",
+    comparacao: Literal["nenhuma", "periodo_anterior", "ano_anterior"] = "periodo_anterior",
 ) -> Filtros:
     try:
         return Filtros(capitulo_ids=capitulo_ids, grupo_ids=grupo_ids, cid_codigos=cid_codigos, uf=uf,
@@ -84,7 +84,9 @@ def meta(db=Depends(get_db)):
         "SELECT min(data_internacao), max(data_internacao), min(competencia), max(competencia) FROM internacoes"
     ).fetchone()
     dados["periodo"] = {"data_min": _iso(dmin), "data_max": _iso(dmax),
-                        "competencia_min": cmin, "competencia_max": cmax}
+                        "competencia_min": cmin, "competencia_max": cmax,
+                        "fonte": "SIH/SUS (RD — DATASUS)",
+                        "ultima_atualizacao": datetime.fromtimestamp(caminho_banco().stat().st_mtime, tz=timezone.utc).isoformat()}
     dados["export_max_linhas"] = limite_export()
     dados["foco"] = queries.foco_local(db, os.getenv("FOCO_UF", ""), os.getenv("FOCO_MUNICIPIO", ""))
     tem_fonte = db.execute("SELECT count(*) FROM information_schema.columns WHERE table_name = 'internacoes' AND column_name = 'fonte'").fetchone()[0]
@@ -193,3 +195,18 @@ def get_cid_buscar(
 ):
     """Subcategorias CID-10 presentes nos dados que combinam com a busca (código ou nome)."""
     return queries.buscar_cid(db, f, q, limite)
+
+
+@app.get("/cid/grupos")
+def get_cid_grupos(f: Filtros = Depends(filtros_dep), db=Depends(get_db)):
+    """Blocos oficiais da CID-10 presentes nos dados (com contagem), ignorando os filtros de grupo e CID."""
+    return queries.grupos_dinamicos(db, f)
+
+
+@app.get("/cid/resolver")
+def get_cid_resolver(codigo: str = Query(..., min_length=1)):
+    """Resolve um código CID-10 digitado para categoria, capítulo, bloco e grupo prioritário."""
+    res = resolver_cid(codigo)
+    if res is None:
+        return {"valido": False, "cid3": None, "capitulo": None, "bloco": None, "grupo_prioritario": None}
+    return {"valido": True, **res}

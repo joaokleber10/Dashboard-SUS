@@ -1,8 +1,10 @@
 import type {
   BuscaCidResp,
+  CidResolvido,
   DemografiaResp,
   Filtros,
   GeoJson,
+  GrupoDinamico,
   KpisResp,
   MapaResp,
   Meta,
@@ -28,7 +30,7 @@ function formatarDetalhe(detail: unknown): string {
     return detail
       .map((d) =>
         d && typeof d === "object" && "mensagem" in d
-          ? `${(d as any).campo}: ${(d as any).mensagem}`
+          ? `${(d as { campo?: string }).campo}: ${(d as { mensagem?: string }).mensagem}`
           : JSON.stringify(d),
       )
       .join("; ");
@@ -39,14 +41,27 @@ function formatarDetalhe(detail: unknown): string {
 /** Converte os filtros em query string; URLSearchParams já codifica '+' como %2B ('65+'). */
 export function paraQuery(
   f: Filtros,
-  extra: Record<string, string> = {},
+  extra: Record<string, string | string[] | undefined> = {},
 ): string {
   const p = new URLSearchParams();
   for (const [chave, valor] of Object.entries(f)) {
-    if (Array.isArray(valor)) valor.forEach((v) => p.append(chave, v));
-    else if (valor) p.set(chave, valor);
+    if (Array.isArray(valor)) {
+      for (const v of valor) {
+        if (v !== "") p.append(chave, v);
+      }
+    } else if (typeof valor === "string" && valor !== "") {
+      p.set(chave, valor);
+    }
   }
-  for (const [k, v] of Object.entries(extra)) p.set(k, v);
+  for (const [k, v] of Object.entries(extra)) {
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (item !== "") p.append(k, item);
+      }
+    } else if (typeof v === "string" && v !== "") {
+      p.set(k, v);
+    }
+  }
   return p.toString();
 }
 
@@ -76,16 +91,35 @@ async function get<T>(caminho: string, query = ""): Promise<T> {
 }
 
 export const buscarMeta = () => get<Meta>("/meta/filtros");
+
 export const buscarKpis = (f: Filtros) => get<KpisResp>("/kpis", paraQuery(f));
+
 export const buscarSerie = (f: Filtros, agrupar: "capitulo" | "total") =>
   get<SerieResp>("/serie-temporal", paraQuery(f, { agrupar_por: agrupar }));
+
 export const buscarDemografia = (f: Filtros) =>
   get<DemografiaResp>("/demografia", paraQuery(f));
+
 export const buscarTopCid = (f: Filtros, limite = 10) =>
   get<TopCidResp>("/top-cid", paraQuery(f, { limite: String(limite) }));
 
+export const buscarGruposDinamicos = (f: Filtros) =>
+  get<GrupoDinamico[]>("/cid/grupos", paraQuery(f));
+
+export const resolverCid = (codigo: string) =>
+  get<CidResolvido>("/cid/resolver", new URLSearchParams({ codigo }).toString());
+
+export const urlExportarCsv = (f: Filtros): string => {
+  const query = paraQuery(f);
+  return `${BASE}/export.csv${query ? `?${query}` : ""}`;
+};
+
+/** Alias usado pelo botão de exportação com contador de registros. */
+export const urlExport = urlExportarCsv;
+
 export const buscarMapa = (f: Filtros) =>
   get<MapaResp>("/municipios/mapa", paraQuery(f));
+
 export const buscarMunicipios = (
   f: Filtros,
   ordenar: OrdemMunicipios,
@@ -104,10 +138,9 @@ export const buscarMunicipios = (
       ...(busca ? { busca } : {}),
     }),
   );
+
 export const buscarGeo = (uf: string) =>
   get<GeoJson>("/geojson", new URLSearchParams({ uf }).toString());
+
 export const buscarCid = (f: Filtros, q: string) =>
   get<BuscaCidResp>("/cid/buscar", paraQuery(f, { q, limite: "15" }));
-
-/** URL de download do CSV com os filtros atuais (o navegador baixa direto, sem passar pela memória do JS). */
-export const urlExport = (f: Filtros) => `${BASE}/export.csv?${paraQuery(f)}`;

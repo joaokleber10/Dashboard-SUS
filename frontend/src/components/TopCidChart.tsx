@@ -26,7 +26,10 @@ function DicaCid({
   const i = payload[0].payload;
   return (
     <div className="dica">
-      <strong>{i.cid3}</strong> <span>{i.cid_nome ?? i.capitulo_nome}</span>
+      <strong>{i.cid3}</strong>
+      {i.cid_nome && <span className="dica-nome">{i.cid_nome}</span>}
+      {i.grupo_nome && <span className="dica-grupo">{i.grupo_nome}</span>}
+      <span>{i.capitulo_nome}</span>
       <br />
       <span>
         {nf.format(i.casos)} internações ({nf2.format(i.percentual ?? 0)}% do
@@ -65,7 +68,7 @@ export default function TopCidChart({ filtros }: { filtros: Filtros }) {
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                stroke="#e5e7eb"
+                stroke="var(--borda)"
                 horizontal={false}
               />
               <XAxis
@@ -83,8 +86,8 @@ export default function TopCidChart({ filtros }: { filtros: Filtros }) {
             </BarChart>
           </ResponsiveContainer>
           <p className="nota">
-            Passe o mouse sobre a barra para ver o capítulo, a participação e os
-            óbitos.
+            Passe o mouse sobre a barra para ver o grupo, o capítulo, a
+            participação e os óbitos.
           </p>
         </div>
       )}

@@ -114,6 +114,7 @@ def test_top_cid(client):
     j18 = r["itens"][0]
     assert (j18["casos"], j18["obitos"], j18["percentual"]) == (2, 1, 33.33)
     assert j18["capitulo_id"] == "X" and "Respiratório" in j18["capitulo_nome"]
+    assert j18["grupo_nome"] is not None
     ix = client.get("/top-cid", params={"capitulo_ids": ["IX"]}).json()
     assert {i["cid3"] for i in ix["itens"]} == {"I21", "I10", "I64"}
     assert client.get("/top-cid", params={"limite": 0}).status_code == 422
@@ -153,3 +154,30 @@ def test_meta_informa_limite_e_capitulos_padrao(client, monkeypatch):
     m = client.get("/meta/filtros").json()
     assert m["export_max_linhas"] == 1234
     assert [c["id"] for c in m["capitulos"] if c["padrao"]] == ["IX", "X"]
+
+
+def test_meta_fonte_e_kpis_municipios_atendidos(client):
+    m = client.get("/meta/filtros").json()
+    assert m["periodo"]["fonte"] == "SIH/SUS (RD — DATASUS)"
+    assert m["periodo"]["ultima_atualizacao"]
+    a = client.get("/kpis").json()["atual"]
+    assert a["municipios_atendidos"] == 2
+    # filtro por bloco CID-10 oficial
+    blk = client.get("/kpis", params={"grupo_ids": ["I20-I25"]}).json()["atual"]
+    assert blk["total"] == 1
+
+
+def test_cid_grupos_e_resolver(client):
+    grupos = client.get("/cid/grupos").json()
+    assert len(grupos) >= 4
+    assert grupos[0]["id"] == "J09-J18" and grupos[0]["internacoes"] == 2
+    # ignora grupo_ids/cid_codigos mas respeita capitulo_ids
+    grupos_ix = client.get("/cid/grupos", params={"capitulo_ids": ["IX"], "grupo_ids": ["iam"]}).json()
+    assert all(g["capitulo"] == "IX" for g in grupos_ix) and len(grupos_ix) == 3
+
+    res_ok = client.get("/cid/resolver", params={"codigo": "I21.9"}).json()
+    assert res_ok["valido"] is True and res_ok["cid3"] == "I21"
+    assert res_ok["bloco"]["id"] == "I20-I25" and res_ok["grupo_prioritario"]["id"] == "iam"
+
+    res_bad = client.get("/cid/resolver", params={"codigo": "invalido"}).json()
+    assert res_bad == {"valido": False, "cid3": None, "capitulo": None, "bloco": None, "grupo_prioritario": None}

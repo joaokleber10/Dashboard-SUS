@@ -75,7 +75,7 @@ def construir_config(argv: Optional[list[str]] = None) -> tuple[Config, argparse
     p.add_argument("--uf", default=os.getenv("ETL_UF", "PB"), help="UF ou lista separada por vírgula")
     p.add_argument("--source", default=os.getenv("ETL_SOURCE", "SIH"), help="fonte de dados (hoje: SIH)")
     p.add_argument("--start", type=int, default=int(os.getenv("ETL_YEAR_START", "2023")))
-    p.add_argument("--end", type=int, default=int(os.getenv("ETL_YEAR_END", "2024")))
+    p.add_argument("--end", type=int, default=int(os.getenv("ETL_YEAR_END", str(date.today().year))))
     p.add_argument("--force", action="store_true", help="reprocessa competências já existentes")
     p.add_argument("--inspect", action="store_true", help="baixa 1 mês e imprime colunas e valores")
     p.add_argument("--skip-load", action="store_true", help="não recria a tabela no DuckDB")
